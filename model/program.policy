@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<Policy version="0.1" type="value" model="program.pomdp" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="policyx.xsd">
+<AlphaVector vectorLength="9" numObsValue="1" numVectors="13">
+<Vector action="0" obsValue="0">75.199 75.199 94.999 75.199 -103.001 -103.001 -103.001 -103.001 -4.00097 </Vector>
+<Vector action="1" obsValue="0">64.447 64.447 88.999 64.447 -111.971 -111.971 68.902 46.8052 -10.001 </Vector>
+<Vector action="1" obsValue="0">88.999 -109.001 88.999 -109.001 -109.001 -109.001 69.199 -109.001 -10.001 </Vector>
+<Vector action="0" obsValue="0">62.2901 77.7737 84.109 79.9613 -112.205 -114.557 64.4776 26.9124 -4.00097 </Vector>
+<Vector action="0" obsValue="0">72.9597 88.5997 94.504 90.3639 -103.298 -105.674 -103.298 -105.674 -7.96097 </Vector>
+<Vector action="0" obsValue="0">75.199 75.199 94.999 75.199 -103.001 -103.001 -103.001 -103.001 -7.96097 </Vector>
+<Vector action="0" obsValue="0">72.9597 88.5997 94.504 90.3639 -103.298 -105.674 -103.298 -105.674 -15.7625 </Vector>
+<Vector action="0" obsValue="0">72.7572 89.5941 94.455 91.6709 -103.327 -108.056 -103.327 -108.056 -19.6049 </Vector>
+<Vector action="2" obsValue="0">99.999 -100.001 99.999 -100.001 -100.001 -100.001 -100.001 -100.001 -0.000965062 </Vector>
+<Vector action="0" obsValue="0">75.199 75.199 94.999 75.199 -103.001 -103.001 -103.001 -103.001 -15.7625 </Vector>
+<Vector action="0" obsValue="0">72.9597 88.5997 94.504 90.3639 -103.298 -105.674 -103.298 -105.674 -23.4089 </Vector>
+<Vector action="0" obsValue="0">72.7572 89.5942 94.455 91.6709 -103.327 -108.056 -103.327 -108.056 -27.1748 </Vector>
+<Vector action="1" obsValue="0">62.0296 78.6982 88.999 78.6982 -112.294 -116.975 68.8697 59.1309 -10.001 </Vector>
+</AlphaVector> </Policy>
