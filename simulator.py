@@ -1,26 +1,37 @@
 from utils.parser import Policy,Solver
 from utils.pomdp_parser import Model
+from utils.pomdp_solver import generate_policy
 import numpy as np
 np.set_printoptions(precision=2)     # for better belief printing 
 import random
 import pathlib
 import pandas as pd
-
+import os 
 
 class Simulator:
 
-	def __init__(self):
+	def __init__(self, solve_pomdp=True):
 
 		pomdp_file = pathlib.Path.cwd()/'model/program.pomdp'
-		policy_file = pathlib.Path.cwd()/'model/program.policy'
+		assert pathlib.Path(pomdp_file).is_file(), 'POMDP path does not exist'
+
+		solver_path = '/home/saeid/software/sarsop/src/pomdpsol'
+		assert pathlib.Path(solver_path).is_file(), 'Solver path does not exist'
 
 		self.model = Model(pomdp_file=pomdp_file, parsing_print_flag=False)
+
+		policy_file = pathlib.Path.cwd()/'model/program.policy'
+		print (policy_file)
+		if solve_pomdp:
+			generate_policy(solver_path,pomdp_file,policy_file)		
+		assert pathlib.Path(policy_file).is_file(), 'POLICY path does not exist'
+
 		self.policy = Policy(len(self.model.states),
 							len(self.model.actions),
 							policy_file=policy_file)
 
 	def update(self, a_idx,o_idx,b ):
- 		'''Update belief using Bayes update rule'''
+		'''Update belief using Bayes update rule'''
 		b = np.dot(b, self.model.trans_mat[a_idx, :])
 		b = [b[i] * self.model.obs_mat[a_idx, i, o_idx] for i in range(len(self.model.states))]
 		b = b / sum(b)
