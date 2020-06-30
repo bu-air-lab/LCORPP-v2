@@ -10,7 +10,7 @@ import os
 
 class Simulator:
 
-	def __init__(self, solve_pomdp=True):
+	def __init__(self, solve_pomdp=False):
 
 		pomdp_file = pathlib.Path.cwd()/'model/program.pomdp'
 		assert pathlib.Path(pomdp_file).is_file(), 'POMDP path does not exist'
@@ -24,11 +24,13 @@ class Simulator:
 		print (policy_file)
 		if solve_pomdp:
 			generate_policy(solver_path,pomdp_file,policy_file)		
-		assert pathlib.Path(policy_file).is_file(), 'POLICY path does not exist'
+		#assert pathlib.Path(policy_file).is_file(), 'POLICY path does not exist'
 
 		self.policy = Policy(len(self.model.states),
 							len(self.model.actions),
 							policy_file=policy_file)
+		
+		
 
 	def update(self, a_idx,o_idx,b ):
 		'''Update belief using Bayes update rule'''
@@ -42,12 +44,11 @@ class Simulator:
 		#df = pd.DataFrame(b,index=False, columns=self.model.states)
 		#print (df)
 
-	def observe(self,a_idx):
+	def observe(self,a_idx,next_state):
 		'''Make an observation using random distribution of the observation marix'''
-		all_obs_idx= range(len(self.model.observations))
-		prob_dist = self.model.obs_mat[a_idx,random.randint(0,len(self.model.states)-1),:]
+		s_idx = self.model.states.index(next_state)
 		
-		return np.random.choice(all_obs_idx, p= prob_dist) 
+		return np.random.choice(self.model.observations, p= self.model.obs_mat[a_idx,s_idx,:]) 
 
 	def run(self):
 
@@ -58,15 +59,25 @@ class Simulator:
 		print (b)
 		
 		term=False
-
+		state= np.random.choice(self.model.states[:-1])  # do not sample term
+		
 		while not term:
 			a_idx=self.policy.select_action(b)
-			obs_idx = self.observe(a_idx)
-			print ('\n\n\naction is: ',self.model.actions[a_idx])
-			print ('observation is: ',self.model.observations[obs_idx]) 
+			
+			s_idx = self.model.states.index(state) 
+			print ('\n\n\nUnderlying state: ', state)
+			print ('action is: ',self.model.actions[a_idx])
+			
+
+			
+			next_state = np.random.choice(self.model.states, p=self.model.trans_mat[a_idx,s_idx,:])
+			obs = self.observe(a_idx,next_state)
+			obs_idx = self.model.observations.index(obs)
+			print ('observation is: ',self.model.observations[obs_idx])
 			b = self.update(a_idx,obs_idx,b)
 			print(b)
 			
+			state = next_state
 			if b[-1]>0:
 				term=True
 				print('\n')
