@@ -1,0 +1,21 @@
+Generating the training data:
+
+=>g++ generator.cpp -o generator
+=>./generator
+
+it will ask for a number to input which is the number of samples you want
+then it will ask for a string to be the output file name
+
+Alchemy:
+
+=>File Location/learnwts -g -i autocar.mln -o output_filename.mln -t train_data_filename.db
+eg. /home/gao/Documents/alchemy-2-compiled/bin/learnwts -g -i autocar.mln -o autocar_300.mln -t train_300.db
+
+the output file from the learn weights is used in the infer
+
+=>File Location/infer -i file_from_learnwts.mln -r output_filename.result -e evidence.db -q Road,Cooperative
+eg. /home/gao/Documents/alchemy-2-compiled/bin/infer -i autocar_300.mln -r autocar_300.result -e evidence.db -q Road,Cooperative
+
+More material about learnwts and infer:
+https://alchemy.cs.washington.edu/tutorial/tutorial.pdf
+http://alchemy.cs.washington.edu/user-manual/manual.html
