@@ -1,0 +1,38 @@
+//sunny rainy -- weather type
+0.5 0.5
+//car sport truck -- cat type
+0.4 0.3 0.3
+//busy normal -- time type
+0.5 0.5
+
+//crowded
+0.5 //s b cr
+0.5 //s n cr
+0.9 //r b cr
+0.5 //r n cr
+
+//Cooperative
+0.5 //s b c cr +co
+0.5 //s b c e +co
+0.5 //s b sp cr +co
+0.5 //s b sp e +co
+0.5 //s b t cr +co
+0.5 //s b t e +co
+0.5 //s n c cr +co
+0.5 //s n c e +co
+0.5 //s n sp cr +co
+0.5 //s n sp e +co
+0.5 //s n t cr +co
+0.5 //s n t e +co
+0.5 //r b c cr +co
+0.5 //r b c e +co
+0.5 //r b sp cr +co
+0.5 //r b sp e +co
+0.9 //r b t cr +co
+0.5 //r b t e +co
+0.5 //r n c cr +co
+0.5 //r n c e +co
+0.5 //r n sp cr +co
+0.5 //r n sp e +co
+0.5 //r n t cr +co
+0.5 //r n t e +co
