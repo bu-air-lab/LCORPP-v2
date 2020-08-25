@@ -1,0 +1,70 @@
+//predicate declarations
+Perception(crowdedness!,sample)
+Time(ttyoe!,sample)
+Road(crowdedness!,sample)
+Weather(wtype!,sample)
+Cooperative(sample)
+
+// -2.15799  Time(Normal,s) => Road(Crowded,s)
+-2.15799  !Time(Normal,a1) v Road(Crowded,a1)
+
+// 2.11835  Time(Busy,s) => Road(Crowded,s)
+2.11835  !Time(Busy,a1) v Road(Crowded,a1)
+
+// 2.11424  Time(Normal,s) => Road(Empty,s)
+2.11424  !Time(Normal,a1) v Road(Empty,a1)
+
+// -2.15418  Time(Busy,s) => Road(Empty,s)
+-2.15418  !Time(Busy,a1) v Road(Empty,a1)
+
+// 6.57306  Road(Crowded,s) => Perception(Crowded,s)
+6.57306  !Road(Crowded,a1) v Perception(Crowded,a1)
+
+// -6.54032  Road(Empty,s) => Perception(Crowded,s)
+-6.54032  !Road(Empty,a1) v Perception(Crowded,a1)
+
+// -6.51338  Road(Crowded,s) => Perception(Empty,s)
+-6.51338  !Road(Crowded,a1) v Perception(Empty,a1)
+
+// 6.55958  Road(Empty,s) => Perception(Empty,s)
+6.55958  !Road(Empty,a1) v Perception(Empty,a1)
+
+// 0.0989515  Weather(Sunny,s) ^ Road(Crowded,s) => !Cooperative(s)
+0.0989515  !Weather(Sunny,a1) v !Road(Crowded,a1) v !Cooperative(a1)
+
+// -0.391901  Weather(Sunny,s) ^ Road(Crowded,s) =>  Cooperative(s)
+-0.391901  !Weather(Sunny,a1) v !Road(Crowded,a1) v Cooperative(a1)
+
+// 1.39028  Weather(Rainy,s) ^ Road(Crowded,s) => !Cooperative(s)
+1.39028  !Weather(Rainy,a1) v !Road(Crowded,a1) v !Cooperative(a1)
+
+// -0.776056  Weather(Rainy,s) ^ Road(Crowded,s) =>  Cooperative(s)
+-0.776056  !Weather(Rainy,a1) v !Road(Crowded,a1) v Cooperative(a1)
+
+// -0.702467  Weather(Sunny,s) ^ Road(Empty,s) => !Cooperative(s)
+-0.702467  !Weather(Sunny,a1) v !Road(Empty,a1) v !Cooperative(a1)
+
+// 1.25917  Weather(Sunny,s) ^ Road(Empty,s) =>  Cooperative(s)
+1.25917  !Weather(Sunny,a1) v !Road(Empty,a1) v Cooperative(a1)
+
+// -0.466223  Weather(Rainy,s) ^ Road(Empty,s) => !Cooperative(s)
+-0.466223  !Weather(Rainy,a1) v !Road(Empty,a1) v !Cooperative(a1)
+
+// 0.0472912  Weather(Rainy,s) ^ Road(Empty,s) =>  Cooperative(s)
+0.0472912  !Weather(Rainy,a1) v !Road(Empty,a1) v Cooperative(a1)
+
+// -0.358567  Weather(a1!,a2)
+-0.358567  Weather(a1,a2)
+
+// -0.0209  Time(a1!,a2)
+-0.0209  Time(a1,a2)
+
+// -0.100474  Road(a1!,a2)
+-0.100474  Road(a1,a2)
+
+// -0.0215378  Perception(a1!,a2)
+-0.0215378  Perception(a1,a2)
+
+// 0.00454725  Cooperative(a1)
+0.00454725  Cooperative(a1)
+

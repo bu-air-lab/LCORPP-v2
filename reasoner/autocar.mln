@@ -1,15 +1,14 @@
 wtype = {Sunny, Rainy}
-ctype = {Car, Sport, Truck}
 ttype = {Busy, Normal}
 crowdedness = {Crowded, Empty}
 
 
 Weather(wtype!,sample)
 Time(ttyoe!,sample)
-Vehicle(ctype!,sample)
 Road(crowdedness!,sample)
+Perception(crowdedness!,sample)
 Cooperative(sample)
 
-
-Weather(+w, s) ^ Time(+t, s) => Road(+r, s)
-Weather(+w, s) ^ Time(+t, s) ^ Vehicle(+c, s) ^ Road(+r, s) => *Cooperative(s)
+Time(+t, s)=> Road(+r, s)
+Road(+r,s)=>Perception(+p,s)
+Weather(+w, s) ^Road(+r, s) => *Cooperative(s)

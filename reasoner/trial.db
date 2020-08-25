@@ -1,0 +1,6 @@
+!Weather(Sunny,1)
+Weather(Rainy,1)
+Time(Busy,1)
+!Time(Normal,1)
+Perception(Crowded,1)
+!Perception(Empty,1)

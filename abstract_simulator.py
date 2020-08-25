@@ -21,6 +21,67 @@ random.seed(5)
 np.random.seed(5)
 
 class Reasoner:
+      @staticmethod
+      def minor_output_evd(f,instance,index):
+            
+            if instance['weather']=="sunny":
+                  f.write("Weather(Sunny,"+index+")\n")
+                  f.write("!Weather(Rainy,"+index+")\n")
+            elif instance['weather']=="rainy":
+                  f.write("!Weather(Sunny,"+index+")\n")
+                  f.write("Weather(Rainy,"+index+")\n")
+      
+            if instance['time_period']=="busy":
+                  f.write("Time(Busy,"+index+")\n")
+                  f.write("!Time(Normal,"+index+")\n")
+            elif instance['time_period']=="normal":
+                  f.write("Time(Normal,"+index+")\n")
+                  f.write("!Time(Busy,"+index+")\n")
+            
+            if instance['perception']=="crowded":
+                  f.write("Perception(Crowded,"+index+")\n")
+                  f.write("!Perception(Empty,"+index+")\n")
+            
+            elif instance['perception']=="empty":
+                  f.write("!Perception(Crowded,"+index+")\n")
+                  f.write("Perception(Empty,"+index+")\n")
+
+      def minor_output_data(f,instance,index):
+            if instance['weather']=="sunny":
+                  f.write("Weather(Sunny,"+index+")\n")
+                  f.write("!Weather(Rainy,"+index+")\n")
+            elif instance['weather']=="rainy":
+                  f.write("!Weather(Sunny,"+index+")\n")
+                  f.write("Weather(Rainy,"+index+")\n")
+      
+            if instance['time_period']=="busy":
+                  f.write("Time(Busy,"+index+")\n")
+                  f.write("!Time(Normal,"+index+")\n")
+            elif instance['time_period']=="normal":
+                  f.write("Time(Normal,"+index+")\n")
+                  f.write("!Time(Busy,"+index+")\n")
+                        
+            if instance['cr']=="crowded":
+                  f.write("Road(Crowded,"+index+")\n")
+                  f.write("!Road(Empty,"+index+")\n")
+            
+            elif instance['cr']=="empty":
+                  f.write("!Road(Crowded,"+index+")\n")
+                  f.write("Road(Empty,"+index+")\n")
+                     
+            if instance['perception']=="crowded":
+                  f.write("Perception(Crowded,"+index+")\n")
+                  f.write("!Perception(Empty,"+index+")\n")
+            
+            elif instance['perception']=="empty":
+                  f.write("!Perception(Crowded,"+index+")\n")
+                  f.write("Perception(Empty,"+index+")\n")
+            
+            if instance['co']=="cooperative":
+                  f.write("Cooperative("+index+")\n")
+            elif instance['co']=="not cooperative": 
+                  f.write("!Cooperative("+index+")\n")
+            
       
       @staticmethod
       def output_evidence(f,instance,index):
@@ -168,7 +229,7 @@ class Planner:
 							     policy_file=policy_file)
       
       def initialize_belief(self,p_co):
-            p_co=round(float(p_co),3)
+            p_co=round(float(p_co),4)
             b1=0.5*p_co
             b2=0.5*(1-p_co)
             b3=0.5*p_co
@@ -262,6 +323,68 @@ class AbstractSimulator:
       def sample (self, alist, distribution):
             return np.random.choice(alist, p=distribution)
       
+      def minor_sample_cr(self,instance):
+            if instance['time_period']=="busy":
+                        cr=self.sample(self.crowded_list,[0.9,0.1])          
+            elif instance["time_period"]=="normal":
+                        cr=self.sample(self.crowded_list,[0.1,0.9]) 
+            return cr
+      
+      def minor_perceive(self,instance,conf1,conf2):
+            if instance['cr']=="crowded":
+                  perception=self.sample(self.crowded_list,conf1)
+            if instance['cr']=="empty":
+                  perception=self.sample(self.crowded_list,conf2)
+            return perception
+      
+      def minor_sample_co(self,instance):
+            if instance['cr']=="crowded":
+                  if instance["weather"]=="rainy":
+                        co=self.sample(self.willingness_list,[0.1,0.9])
+                  elif instance["weather"]=="sunny":
+                        co=self.sample(self.willingness_list,[0.3,0.7])
+            
+            elif instance['cr']=="empty":
+                  if instance["weather"]=="sunny":
+                        co=self.sample(self.willingness_list,[0.9,0.1])
+                  elif instance["weather"]=="rainy":
+                        co=self.sample(self.willingness_list,[0.7,0.3])   
+            return co
+      
+      def minor_create_instance(self):
+            instance={}
+            instance['weather']=random.choice(self.weather_list)
+            instance['time_period']=random.choice(self.time_period_list)
+            instance['cr']=self.minor_sample_cr(instance)
+            instance['co']=self.minor_sample_co(instance)
+            instance['perception']=self.minor_perceive(instance,[1.0,0.0],[0.0,1.0])
+            instance['co_reasoning']=None
+            return instance
+      
+      def minor_generate_data(self,num_trials):
+            instance_list=[]
+            for i in range(0,num_trials):
+                  instance=self.minor_create_instance()
+                  instance_list.append(instance)
+            return instance_list
+      
+      def minor_check_co(self,instance_list):
+            r_b_cr=0
+            r_b_cr_co=0
+            r_b_cr_nco=0
+            for ins in instance_list:
+                  if ins['weather']=="rainy" and ins['time_period']=="busy" and ins['perception']=="crowded":
+                        r_b_cr+=1
+                        if ins["co"]=="cooperative":
+                              r_b_cr_co+=1
+                        elif ins['co']=="not cooperative":
+                              r_b_cr_nco+=1
+            assert (r_b_cr_co+r_b_cr_nco)==r_b_cr, 'Probability error'
+            return (r_b_cr_co/r_b_cr)
+
+
+      
+      
       def sample_crowded(self,weather,time_period):
             if weather=="sunny":
                   if time_period=="busy":
@@ -297,6 +420,9 @@ class AbstractSimulator:
                   elif weather=='rainy':
                         co=self.sample(self.willingness_list,[0.5,0.5])
             return co
+      
+
+
       
       def set_crowded(self,weather,time_period):
             if weather=="sunny":
@@ -334,6 +460,71 @@ class AbstractSimulator:
                         co=0.5
             return co      
 
+
+
+      
+      #def 
+      
+      def minor_check(self,instance_list):
+            r_b=0
+            r_n=0
+            s_b=0
+            s_n=0
+            r_b_co=0
+            r_n_co=0
+            s_b_co=0
+            s_n_co=0
+            
+            for ins in instance_list:
+                  if ins['weather']=="rainy":
+                        if ins['time_period']=='busy':
+                              r_b+=1
+                              if ins['co']=="cooperative":
+                                    r_b_co+=1
+                        elif ins['time_period']=="normal":
+                              r_n+=1
+                              if ins['co']=="cooperative":
+                                    r_n_co+=1
+                  
+                  if ins['weather']=="sunny":
+                        if ins['time_period']=="normal":
+                              s_b+=1
+                              if ins['co']=="cooperative":
+                                    s_n_co+=1
+                        
+                        if ins['time_period']=="busy":
+                              s_n+=1
+                              if ins['co']=="cooperative":
+                                    s_b_co+=1
+            
+            p_r_b_co=r_b_co/r_b
+            p_r_n_co=r_n_co/r_n
+            p_s_n_co=s_n_co/s_n
+            p_s_b_co=s_b_co/s_b
+            p=[p_r_b_co,p_r_n_co,p_s_n_co,p_s_b_co]
+            print(p)
+            return p
+      
+      def minor_plot_sampling(self,start,max,step):
+            p_list=[]
+            num_list=[]
+            instance_list=self.minor_generate_data(1000)
+            for i in range(start,max,step):
+                  print("The sample size is",i)
+                  test_list=self.minor_generate_data(i)
+                  p=self.minor_check(test_list)
+                  p_list.append(p[0]-0.1)
+                  num_list.append(i)
+      
+            plt.figure()
+            plt.plot(num_list,p_list,'.-b')
+            plt.xlabel("Number of Samples")
+            plt.ylabel("Average probability difference from expected optimal")
+            plt.show()
+            plt.savefig("performance_of_sampling.pdf")
+
+
+
       def create_instance(self,seed,conf_matrix):
             
             instance={}
@@ -366,8 +557,7 @@ class AbstractSimulator:
             if cr=="crowded":
                   perception=self.sample(self.crowded_list,p1)
             if cr=="empty":
-                  perception=self.sample(self.crowded_list,p2)
-            
+                  perception=self.sample(self.crowded_list,p2)          
             return perception
       
       def create_testdata(self,num_data):
@@ -788,7 +978,7 @@ class AbstractSimulator:
             print("perception:",instance['perception'],"cooperative_reasoning:",instance['co_reasoning'],"Accumalative reward is:",instance["reward"],"Terminal result is:",)
       
       def evaluate_mln(self,start_index,num_trials,test_list,test_data):
-            evidence_file_name="0814.db"
+            evidence_file_name="test.db"
             instance_list=[]
             abs_total_reason=0
             abs_total_soft=0
@@ -898,6 +1088,9 @@ class AbstractSimulator:
             plt.show()
             plt.savefig("performance_of_mln.pdf")
       
+      #def plot_learning(self,train_size):
+
+      
       def plot_p_r_a(self,train_size):
             test_list=[]
             f=open("reasoner/test.db","w")
@@ -996,7 +1189,85 @@ class AbstractSimulator:
 def main():
       parser = argparse.ArgumentParser(description='Training Settings')
       #parser.add_argument()
+      
       sim=AbstractSimulator()
+      #sim.minor_plot_sampling(100,8100,100)
+      index=0
+      results=[]
+      samples=[]
+      instance={"weather":"rainy","time_period":"busy","perception":"crowded","cr":"crowded","co":None}
+      f=open("reasoner/trial.db","w")
+      Reasoner.minor_output_evd(f,instance,"1")
+      f.close()
+      step=200
+      data_list=[]
+      frequency_list=[]
+      for i in range(1,50):
+            training_data=sim.minor_generate_data(step)
+            data_list=data_list+training_data
+            fr=sim.minor_check_co(data_list)
+            print("Length is",len(data_list))
+            frequency_list.append(fr)
+            f=open("reasoner/train.db","a")
+            for ins in training_data:
+                  Reasoner.minor_output_data(f,ins,str(index))
+                  index+=1
+            f.close()
+            Reasoner.learn_weights(input_file="autocar.mln",output_file="trained.mln",train_data="train.db")
+            Reasoner.infer(result_file="test.result",evidence_file="trial.db")
+            p_co_list=Reasoner.read_result("test.result")
+            results.append((round(float(p_co_list[0]),4)))
+            samples.append(i*step)
+            print(results,frequency_list,samples)
+      plt.figure()
+      plt.plot(samples,results,'.-b')
+      plt.plot(samples,frequency_list,'.-r')
+      plt.xlabel("Number of Samples")
+      plt.ylabel("probability")
+
+      plt.savefig("performance_of_MLN.pdf")
+      plt.show()
+
+
+      plt.close()
+
+
+
+                  
+      
+
+
+      #for i in range(0,10):
+
+      """
+      r_list=[]
+      x_list=[]
+      zero_list=[]
+      test=["a","b"]
+      for i in range(100,1000,100):
+            count=0
+            ratio=0
+            
+            for y in range(0,i):
+                  a=sim.sample(test,[0.9,0.1])
+                  if a=="a":
+                        count+=1
+                  ratio=count/i
+                  print(ratio)
+           
+            r_list.append(ratio)
+            x_list.append(i)
+            zero_list.append(0.9)
+      
+      plt.figure()
+      plt.plot(x_list,r_list,'-b',x_list,zero_list,"-r")
+      plt.xlabel("Number of Samples")
+      plt.ylabel("probability")
+      plt.show()
+      plt.savefig("performance_of_sampling.pdf")
+      plt.close()
+      """
+      
       """
       p1_expected=0.1
       p2_expected=0.2
@@ -1022,6 +1293,8 @@ def main():
       plt.ylabel("Average probability difference from expected optimal")
       plt.show()
       plt.savefig("performance_of_sampling.pdf")
+      """
+
       """
       avg_list=[]
       num_list=[]
@@ -1051,6 +1324,7 @@ def main():
 
             
       
+      """
       """
       planner=Planner()
       sim=AbstractSimulator()
