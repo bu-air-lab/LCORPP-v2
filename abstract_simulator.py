@@ -4,6 +4,7 @@ Created on Mon Aug  3 15:02:17 2020
 
 @author: cckklt
 """
+import os
 import argparse
 import json
 import random
@@ -15,12 +16,30 @@ import subprocess
 from utils.parser import Policy,Solver
 from utils.pomdp_parser import Model
 from utils.pomdp_solver import generate_policy
-np.set_printoptions(precision=2)     # for better belief printing 
+np.set_printoptions(precision=4)     # for better belief printing 
 
 random.seed(5)
 np.random.seed(5)
 
 class Reasoner:
+      
+      @staticmethod
+      def minor_output_evd_cr(f,instance,index):
+            if instance['time_period']=="busy":
+                  f.write("Time(Busy,"+index+")\n")
+                  f.write("!Time(Normal,"+index+")\n")
+            elif instance['time_period']=="normal":
+                  f.write("Time(Normal,"+index+")\n")
+                  f.write("!Time(Busy,"+index+")\n")           
+            
+            if instance['perception']=="crowded":
+                  f.write("Perception(Crowded,"+index+")\n")
+                  f.write("!Perception(Empty,"+index+")\n")          
+            elif instance['perception']=="empty":
+                  f.write("!Perception(Crowded,"+index+")\n")
+                  f.write("Perception(Empty,"+index+")\n")          
+            f.write("\n")
+      
       @staticmethod
       def minor_output_evd(f,instance,index):
             
@@ -44,8 +63,10 @@ class Reasoner:
             
             elif instance['perception']=="empty":
                   f.write("!Perception(Crowded,"+index+")\n")
-                  f.write("Perception(Empty,"+index+")\n")
-
+                  f.write("Perception(Empty,"+index+")\n")          
+            f.write("\n")
+      
+      @staticmethod
       def minor_output_data(f,instance,index):
             if instance['weather']=="sunny":
                   f.write("Weather(Sunny,"+index+")\n")
@@ -79,8 +100,66 @@ class Reasoner:
             
             if instance['co']=="cooperative":
                   f.write("Cooperative("+index+")\n")
+                  #f.write("Cooperative("+index+")\n")
             elif instance['co']=="not cooperative": 
                   f.write("!Cooperative("+index+")\n")
+            f.write("\n")
+      
+      @staticmethod
+      #Reasoning only (R): The same as "perception and reasoning", except that the perception module's output is always negative (no vehicle detected).
+      def minor_output_data_r(f,instance,index):
+            if instance['weather']=="sunny":
+                  f.write("Weather(Sunny,"+index+")\n")
+                  f.write("!Weather(Rainy,"+index+")\n")
+            elif instance['weather']=="rainy":
+                  f.write("!Weather(Sunny,"+index+")\n")
+                  f.write("Weather(Rainy,"+index+")\n")
+      
+            if instance['time_period']=="busy":
+                  f.write("Time(Busy,"+index+")\n")
+                  f.write("!Time(Normal,"+index+")\n")
+            elif instance['time_period']=="normal":
+                  f.write("Time(Normal,"+index+")\n")
+                  f.write("!Time(Busy,"+index+")\n")
+                        
+            if instance['cr']=="crowded":
+                  f.write("Road(Crowded,"+index+")\n")
+                  f.write("!Road(Empty,"+index+")\n")
+            
+            elif instance['cr']=="empty":
+                  f.write("!Road(Crowded,"+index+")\n")
+                  f.write("Road(Empty,"+index+")\n")
+            
+            f.write("!Perception(Crowded,"+index+")\n")
+            f.write("Perception(Empty,"+index+")\n")
+            
+            if instance['co']=="cooperative":
+                  f.write("Cooperative("+index+")\n")
+            elif instance['co']=="not cooperative": 
+                  f.write("!Cooperative("+index+")\n")
+            f.write("\n")
+      
+      @staticmethod
+      #Reasoning only (R): The same as "perception and reasoning", except that the perception module's output is always negative (no vehicle detected).
+      def minor_output_evd_r(f,instance,index):           
+            if instance['weather']=="sunny":
+                  f.write("Weather(Sunny,"+index+")\n")
+                  f.write("!Weather(Rainy,"+index+")\n")
+            elif instance['weather']=="rainy":
+                  f.write("!Weather(Sunny,"+index+")\n")
+                  f.write("Weather(Rainy,"+index+")\n")
+      
+            if instance['time_period']=="busy":
+                  f.write("Time(Busy,"+index+")\n")
+                  f.write("!Time(Normal,"+index+")\n")
+            elif instance['time_period']=="normal":
+                  f.write("Time(Normal,"+index+")\n")
+                  f.write("!Time(Busy,"+index+")\n")
+            
+            f.write("!Perception(Crowded,"+index+")\n")
+            f.write("Perception(Empty,"+index+")\n")     
+            
+            f.write("\n")
             
       
       @staticmethod
@@ -183,7 +262,7 @@ class Reasoner:
             f.close()
       
       @staticmethod
-      def learn_weights(input_file="autocar.mln",output_file="trained.mln",train_data="train_300.db"):
+      def learn_weights(input_file="autocar.mln",output_file="trained.mln",train_data="train.db"):
             infer_path = Path.cwd()/'reasoner/learnwts'
             assert Path(infer_path).is_file(), 'learnwts path does not exist'
             #subprocess.check_output([infer_path,"-i",mln_file,"-r",result_file,"-e",evidence_file, "-q", query])
@@ -192,50 +271,82 @@ class Reasoner:
 
       
       @staticmethod
-      def infer(mln_file="trained.mln",result_file="autocar_300.result",evidence_file="evidence0810.db",query="Cooperative"):
+      def infer(mln_file="trained.mln",result_file="query.result",evidence_file="query.db",query="Cooperative"):
       
             infer_path = Path.cwd()/'reasoner/infer'
             assert Path(infer_path).is_file(), 'infer path does not exist'
             #subprocess.check_output([infer_path,"-i",mln_file,"-r",result_file,"-e",evidence_file, "-q", query])
             #why this does not work, but in parser pomdp it worked
-            subprocess.run(["./infer","-i",mln_file,"-r",result_file,"-e",evidence_file, "-q", query],cwd='reasoner')    
+            subprocess.run(["./infer","-i",mln_file,"-r",result_file,"-e",evidence_file, "-q", query],cwd='reasoner')
+
+      @staticmethod
+      def infer_cr(mln_file="trained.mln",result_file="query_cr.result",evidence_file="query.db",query="Road"):    
+            infer_path = Path.cwd()/'reasoner/infer'
+            assert Path(infer_path).is_file(), 'infer path does not exist'
+            #subprocess.check_output([infer_path,"-i",mln_file,"-r",result_file,"-e",evidence_file, "-q", query])
+            #why this does not work, but in parser pomdp it worked
+            subprocess.run(["./infer","-i",mln_file,"-r",result_file,"-e",evidence_file, "-q", query],cwd='reasoner')     
 
             
       @staticmethod    
       def read_result(file_name):
             f=open("reasoner/"+file_name,"r")
-            cooperative_predict_list=[]
+            co_list=[]
             for line in f:
                   predict=line.split()[-1]
-                  cooperative_predict_list.append(predict)
+                  co=round(float(predict),4)
+                  co_list.append(co)
             f.close()
-            return cooperative_predict_list
+            return co_list
+     
+      @staticmethod    
+      def read_result_cr(file_name):
+            f=open("reasoner/"+file_name,"r")
+            co_list=[]
+            for line in f:
+                  if line.find("Empty")!=-1:
+                        predict=line.split()[-1]
+                        co=round(float(predict),4)
+                        co_list.append(co)
+            f.close()
+            return co_list
 
 class Planner:
-      def __init__(self):
+      def __init__(self, solve_pomdp=False):          
+            solver_path = Path.cwd()/'model/pomdpsol'
+		#assert Path(pomdp_file).is_file(), 'POMDP path does not exist'
+
             pomdp_file=Path.cwd()/'model/program.pomdp'
             assert Path(pomdp_file).is_file(), 'POMDP path does not exist'
             
             self.model = Model(pomdp_file=pomdp_file, parsing_print_flag=False)
             #print(self.model.states,self.model.actions)
-            
+	
             policy_file = Path.cwd()/'model/program.policy'
             assert Path(policy_file).is_file(), 'POMDP path does not exist'
             #print (policy_file)
             print(self.model.states,self.model.actions)
             
+            if solve_pomdp:
+                  subprocess.run(["./pomdpsol program.pomdp --timeout 20 --output program.policy"],cwd='model')   
+			#generate_policy(solver_path,pomdp_file,policy_file)
+            
             self.policy = Policy(len(self.model.states),
 							     len(self.model.actions),
 							     policy_file=policy_file)
       
-      def initialize_belief(self,p_co):
+      def initialize_belief(self,p_co,p_cr):
             p_co=round(float(p_co),4)
-            b1=0.5*p_co
-            b2=0.5*(1-p_co)
-            b3=0.5*p_co
-            b4=0.5*(1-p_co)
-            belief=np.array([b1,b2,b3,b4,0.0])
-            
+            p_cr=round(float(p_cr),4)
+            b1=0.5*p_co*p_cr
+            b2=0.5*p_co*(1-p_cr)
+            b3=0.5*(1-p_co)*p_cr
+            b4=0.5*(1-p_co)*(1-p_cr)
+            b5=0.5*p_co*p_cr
+            b6=0.5*p_co*(1-p_cr)
+            b7=0.5*(1-p_co)*p_cr
+            b8=0.5*(1-p_co)*(1-p_cr)
+            belief=np.array([b1,b2,b3,b4,b5,b6,b7,b8,0.0])          
             #belief=np.
             #belief=np.array([0.5*p_co,0.5*(1-p_co),0.5*p_co,0.5*(1-p_co),0.0])
             return belief
@@ -255,13 +366,21 @@ class Planner:
       
       def run(self,instance):
             p_co=instance['co_reasoning']
-            belief=self.initialize_belief(p_co)
+            p_cr=instance['cr_reasoning']
+            belief=self.initialize_belief(p_co,p_cr)
             #gt corresponding to ground truth
             if instance['co']=="cooperative":
-                  gt_co=1
+                  gt_co=1.0
             elif instance['co']=='not cooperative':
-                  gt_co=0
-            gt_belief=self.initialize_belief(gt_co)
+                  gt_co=0.0
+            
+            if instance['cr']=="empty":
+                  gt_cr=1.0
+            elif instance['cr']=='crowded':
+                  gt_cr=0.0
+            
+            gt_belief=self.initialize_belief(gt_co,gt_cr)
+            print("\nGt distribution is",gt_belief)
             print("The initial belief is:", belief)
             instance["belief"]=belief.tolist()
             instance['pomdp']=[]
@@ -274,12 +393,12 @@ class Planner:
                   s_idx = self.model.states.index(state)
                   r=r+self.model.reward_mat[a_idx,s_idx]
                   
-                  print ('\n\n\nUnderlying state: ', state)
+                  print ('\nUnderlying state: ', state)
                   instance['pomdp'].append("Underlying state:"+state)
                   
                   print ('action is: ',self.model.actions[a_idx])
                   instance['pomdp'].append("Action:"+self.model.actions[a_idx])
-                  
+                  #print("actions are",self.model.actions)
                   next_state = np.random.choice(self.model.states, p=self.model.trans_mat[a_idx,s_idx,:])
                   
                   obs = self.observe(a_idx,next_state)
@@ -287,28 +406,92 @@ class Planner:
                   instance['pomdp'].append("Obs:"+obs)
                   
                   obs_idx = self.model.observations.index(obs)
-                  print ('observation is: ',self.model.observations[obs_idx])
-                  instance['pomdp'].append("Obs:"+self.model.observations[obs_idx])
+                  #print ('observation is: ',self.model.observations[obs_idx])
+                  #instance['pomdp'].append("Obs:"+self.model.observations[obs_idx])
                   
                   belief=self.update_belief(a_idx,obs_idx,belief)
                   instance['pomdp'].append(belief.tolist())
                   print(belief)
                   
-
                   if belief[-1]>0:
                         term=True
-                        instance['cost']=r-self.model.reward_mat[a_idx,s_idx] 
+                        instance['cost']=(r-self.model.reward_mat[a_idx,s_idx])*(-1)
                         instance['reward']=r                    
-                        if(state=="R_W"):
+                        if(state=="R_W_C" or state=="R_W_C_not"):
                               #print("Successful")
                               return "Successful"
                         else:
                               return "Failed"
                         #print("\n")
                   state=next_state
-      #def run_pomdp():
-      
-      #def run_perception_mln():
+            
+      def run_pr(self,instance):
+            p_co=instance['co_reasoning']
+            p_cr=instance['cr_reasoning']
+            belief=self.initialize_belief(p_co,p_cr)
+            
+            #gt corresponding to ground truth
+            if instance['co']=="cooperative":
+                  gt_co=1
+            elif instance['co']=='not cooperative':
+                  gt_co=0
+
+            if instance['cr']=="empty":
+                  gt_cr=1.0
+            elif instance['cr']=='crowded':
+                  gt_cr=0.0
+            
+            gt_belief=self.initialize_belief(gt_co,gt_cr)
+            print("The initial belief is:", belief)
+            instance["belief"]=belief.tolist()
+            instance['pomdp']=[]
+            state= np.random.choice(self.model.states[:-1],p=gt_belief[:-1])
+            # make the initial state agree with the initial belief
+            r=0
+            term=False
+            
+            #do fixed sequential actions
+            #S0,A0 is "left signal"
+            s_idx = self.model.states.index(state)
+            a_idx=0
+            print("state is: ",self.model.states[s_idx])
+            print ('action is: ',self.model.actions[a_idx])
+
+ 
+            #R1     
+            r=r+self.model.reward_mat[a_idx,s_idx]
+            instance['pomdp'].append("Action:"+self.model.actions[a_idx])
+
+            #S1,A1 is "move left"
+            next_state = np.random.choice(self.model.states, p=self.model.trans_mat[a_idx,s_idx,:]) 
+            s_idx = self.model.states.index(next_state)
+            a_idx=1
+            print ('action is: ',self.model.actions[a_idx])
+
+            #R2
+            r=r+self.model.reward_mat[a_idx,s_idx]
+            instance['pomdp'].append("Action:"+self.model.actions[a_idx])
+            
+            #S2,A2 is "merge left"
+            next_state = np.random.choice(self.model.states, p=self.model.trans_mat[a_idx,s_idx,:])
+            s_idx = self.model.states.index(next_state)
+            a_idx=2
+            print ('action is: ',self.model.actions[a_idx])
+            
+            #R3
+            r=r+self.model.reward_mat[a_idx,s_idx]
+            instance['pomdp'].append("Action:"+self.model.actions[a_idx])
+
+            #S3
+            #state=np.random.choice(self.model.states, p=self.model.trans_mat[a_idx,s_idx,:])
+
+            instance['cost']=(r-self.model.reward_mat[a_idx,s_idx])*(-1)
+            instance['reward']=r                    
+            if(next_state=="R_W_C" or state=="R_W_C_not"):
+            #print("Successful")
+                  return "Successful"
+            else:
+                  return "Failed"
             
 
 class AbstractSimulator:
@@ -325,9 +508,9 @@ class AbstractSimulator:
       
       def minor_sample_cr(self,instance):
             if instance['time_period']=="busy":
-                        cr=self.sample(self.crowded_list,[0.9,0.1])          
+                        cr=self.sample(self.crowded_list,[0.8,0.2])          
             elif instance["time_period"]=="normal":
-                        cr=self.sample(self.crowded_list,[0.1,0.9]) 
+                        cr=self.sample(self.crowded_list,[0.2,0.8]) 
             return cr
       
       def minor_perceive(self,instance,conf1,conf2):
@@ -340,38 +523,70 @@ class AbstractSimulator:
       def minor_sample_co(self,instance):
             if instance['cr']=="crowded":
                   if instance["weather"]=="rainy":
-                        co=self.sample(self.willingness_list,[0.1,0.9])
+                        co=self.sample(self.willingness_list,[0.05,0.95])
                   elif instance["weather"]=="sunny":
-                        co=self.sample(self.willingness_list,[0.3,0.7])
-            
+                        co=self.sample(self.willingness_list,[0.2,0.8])
+       
             elif instance['cr']=="empty":
-                  if instance["weather"]=="sunny":
-                        co=self.sample(self.willingness_list,[0.9,0.1])
-                  elif instance["weather"]=="rainy":
-                        co=self.sample(self.willingness_list,[0.7,0.3])   
+                  if instance["weather"]=="rainy":
+                        co=self.sample(self.willingness_list,[0.8,0.2])  
+                  elif instance["weather"]=="sunny":
+                        co=self.sample(self.willingness_list,[0.95,0.05])
             return co
       
-      def minor_create_instance(self):
+      def minor_create_instance(self,conf1,conf2):
             instance={}
             instance['weather']=random.choice(self.weather_list)
             instance['time_period']=random.choice(self.time_period_list)
             instance['cr']=self.minor_sample_cr(instance)
             instance['co']=self.minor_sample_co(instance)
-            instance['perception']=self.minor_perceive(instance,[1.0,0.0],[0.0,1.0])
+            instance['perception']=self.minor_perceive(instance,conf1,conf2)
+            instance['cr_reasoning']=None
             instance['co_reasoning']=None
             return instance
       
-      def minor_generate_data(self,num_trials):
+      def minor_generate_data(self,num_trials,conf1,conf2):
             instance_list=[]
             for i in range(0,num_trials):
-                  instance=self.minor_create_instance()
+                  instance=self.minor_create_instance(conf1,conf2)
                   instance_list.append(instance)
             return instance_list
       
       def minor_check_co(self,instance_list):
+            f=[]
             r_b_cr=0
             r_b_cr_co=0
             r_b_cr_nco=0
+
+            r_b_em=0
+            r_b_em_co=0
+            r_b_em_nco=0
+
+            r_n_cr=0
+            r_n_cr_co=0
+            r_n_cr_nco=0
+            
+            r_n_em=0
+            r_n_em_co=0
+            r_n_em_nco=0
+
+            s_n_cr=0
+            s_n_cr_co=0
+            s_n_cr_nco=0
+            
+            s_n_em=0
+            s_n_em_co=0
+            s_n_em_nco=0
+
+            s_b_cr=0
+            s_b_cr_co=0
+            s_b_cr_nco=0
+
+            
+            s_b_em=0
+            s_b_em_co=0
+            s_b_em_nco=0
+
             for ins in instance_list:
                   if ins['weather']=="rainy" and ins['time_period']=="busy" and ins['perception']=="crowded":
                         r_b_cr+=1
@@ -379,835 +594,951 @@ class AbstractSimulator:
                               r_b_cr_co+=1
                         elif ins['co']=="not cooperative":
                               r_b_cr_nco+=1
-            assert (r_b_cr_co+r_b_cr_nco)==r_b_cr, 'Probability error'
-            return (r_b_cr_co/r_b_cr)
-
-
-      
-      
-      def sample_crowded(self,weather,time_period):
-            if weather=="sunny":
-                  if time_period=="busy":
-                        cr=self.sample(self.crowded_list,[0.5,0.5])#0.125 s b cr/em
-                  elif time_period=="normal":
-                        cr=self.sample(self.crowded_list,[0.1,0.9])#0.025 0.225
-            elif weather=="rainy":
-                  if time_period=="busy":
-                        cr=self.sample(self.crowded_list,[0.9,0.1])
-                  elif time_period=="normal":
-                        cr=self.sample(self.crowded_list,[0.5,0.5])
-            return cr
                   
-      def sample_cooperative(self,weather,time_period,vehicle_type,cr):
-            if cr=="crowded":
-                  if weather=='rainy':
-                        if vehicle_type=="truck":
-                              co=self.sample(self.willingness_list,[0.1,0.9]) #0.1 for cooperative 0.9 for not cooperative 
-                        elif vehicle_type=="sport":
-                              co=self.sample(self.willingness_list,[0.2,0.8])
-                        elif vehicle_type=="sedan":
-                              co=self.sample(self.willingness_list,[0.3,0.7])
-                  elif weather=="sunny":
-                        co=self.sample(self.willingness_list,[0.5,0.5])
-            elif cr=="empty":
-                  if weather=='sunny':
-                        if vehicle_type=="truck":
-                              co=self.sample(self.willingness_list,[0.9,0.1])
-                        elif vehicle_type=="sport":
-                              co=self.sample(self.willingness_list,[0.8,0.2])
-                        elif vehicle_type=="sedan":
-                              co=self.sample(self.willingness_list,[0.7,0.3])
-                  elif weather=='rainy':
-                        co=self.sample(self.willingness_list,[0.5,0.5])
-            return co
-      
-
-
-      
-      def set_crowded(self,weather,time_period):
-            if weather=="sunny":
-                  if time_period=="busy":
-                        cr=0.5#0.125 s b cr/em
-                  elif time_period=="normal":
-                        cr=0.1#0.025 0.225
-            elif weather=="rainy":
-                  if time_period=="busy":
-                        cr=0.9
-                  elif time_period=="normal":
-                        cr=0.5
-            return cr
-                  
-      def set_cooperative(self,weather,time_period,vehicle_type,cr):
-            if cr=="crowded":
-                  if weather=='rainy':
-                        if vehicle_type=="truck":
-                              co=0.1 #0.1 for cooperative 0.9 for not cooperative 
-                        elif vehicle_type=="sport":
-                              co=0.2
-                        elif vehicle_type=="sedan":
-                              co=0.3
-                  elif weather=="sunny":
-                        co=0.5
-            elif cr=="empty":
-                  if weather=='sunny':
-                        if vehicle_type=="truck":
-                              co=0.9
-                        elif vehicle_type=="sport":
-                              co=0.8
-                        elif vehicle_type=="sedan":
-                              co=0.7
-                  elif weather=='rainy':
-                        co=0.5
-            return co      
-
-
-
-      
-      #def 
-      
-      def minor_check(self,instance_list):
-            r_b=0
-            r_n=0
-            s_b=0
-            s_n=0
-            r_b_co=0
-            r_n_co=0
-            s_b_co=0
-            s_n_co=0
-            
-            for ins in instance_list:
-                  if ins['weather']=="rainy":
-                        if ins['time_period']=='busy':
-                              r_b+=1
-                              if ins['co']=="cooperative":
-                                    r_b_co+=1
-                        elif ins['time_period']=="normal":
-                              r_n+=1
-                              if ins['co']=="cooperative":
-                                    r_n_co+=1
-                  
-                  if ins['weather']=="sunny":
-                        if ins['time_period']=="normal":
-                              s_b+=1
-                              if ins['co']=="cooperative":
-                                    s_n_co+=1
-                        
-                        if ins['time_period']=="busy":
-                              s_n+=1
-                              if ins['co']=="cooperative":
-                                    s_b_co+=1
-            
-            p_r_b_co=r_b_co/r_b
-            p_r_n_co=r_n_co/r_n
-            p_s_n_co=s_n_co/s_n
-            p_s_b_co=s_b_co/s_b
-            p=[p_r_b_co,p_r_n_co,p_s_n_co,p_s_b_co]
-            print(p)
-            return p
-      
-      def minor_plot_sampling(self,start,max,step):
-            p_list=[]
-            num_list=[]
-            instance_list=self.minor_generate_data(1000)
-            for i in range(start,max,step):
-                  print("The sample size is",i)
-                  test_list=self.minor_generate_data(i)
-                  p=self.minor_check(test_list)
-                  p_list.append(p[0]-0.1)
-                  num_list.append(i)
-      
-            plt.figure()
-            plt.plot(num_list,p_list,'.-b')
-            plt.xlabel("Number of Samples")
-            plt.ylabel("Average probability difference from expected optimal")
-            plt.show()
-            plt.savefig("performance_of_sampling.pdf")
-
-
-
-      def create_instance(self,seed,conf_matrix):
-            
-            instance={}
-            #random.seed(seed)
-            instance['weather']=random.choice(self.weather_list)
-            #random.seed(seed)
-            instance['time_period']=random.choice(self.time_period_list)
-            #random.seed(seed)
-            instance['vehicle_type']=random.choice(self.vehicle_type_list)
-            #random.seed(seed)
-            
-            instance['cr']=self.sample_crowded(instance['weather'],instance['time_period'])
-            instance['cr_soft']=self.set_crowded(instance['weather'],instance['time_period'])
-            instance['perception']=self.perceive(instance['cr'],conf_matrix)
-            
-            instance['co']=self.sample_cooperative(instance['weather'],instance['time_period'],instance["vehicle_type"],instance['cr'])
-            instance['co_soft']=self.set_cooperative(instance['weather'],instance['time_period'],instance["vehicle_type"],instance['cr'])
-            instance['co_reasoning']=None
-            instance['result']=None
-            instance['cost']=0
-            instance['reward']=0
-            instance['belief']=None          
-            instance['pomdp']=[]
-            #print(instance)
-            return instance
-      
-      def perceive(self,cr,conf_matrix_list):
-            p1=[conf_matrix_list[0],conf_matrix_list[1]]
-            p2=[conf_matrix_list[2],conf_matrix_list[3]]
-            if cr=="crowded":
-                  perception=self.sample(self.crowded_list,p1)
-            if cr=="empty":
-                  perception=self.sample(self.crowded_list,p2)          
-            return perception
-      
-      def create_testdata(self,num_data):
-            test_list=[]
-            f=open("reasoner/test.db","w")
-            for i in range(0,num_data):
-                  instance=self.create_instance(i,[0.84,0.16,0.84,0.16])
-                  test_list.append(instance)
-                  Reasoner.output_evidence(f,instance,str(i))
-            f.close()
-            
-            f=open("test_data.json","w")
-            for ins in test_list:
-                  js=json.dumps(ins)
-                  f.write(js)
-                  f.write("\n")
-            f.close()
-            
-            return test_list
-      
-      def check_cooperative(self,instance_list):
-            sum=0
-            co=0
-            non_co=0
-            for ins in instance_list:
-                  if ins['weather']=="rainy" and ins['time_period']=="busy" and ins["vehicle_type"]=="truck" and ins["perception"]=="crowded":
-                        sum+=1
-                        if ins['co']=="cooperative":
-                              co+=1
+                  if ins['weather']=="rainy" and ins['time_period']=="busy" and ins['perception']=="empty":
+                        r_b_em+=1
+                        if ins["co"]=="cooperative":
+                              r_b_em_co+=1
                         elif ins['co']=="not cooperative":
-                              non_co+=1
-            print(co/sum)
-            return co/sum
+                              r_b_em_nco+=1
+                  
+                  elif ins['weather']=="rainy" and ins['time_period']=="normal" and ins['perception']=="crowded":
+                        r_n_cr+=1
+                        if ins["co"]=="cooperative":
+                              r_n_cr_co+=1
+                        elif ins['co']=="not cooperative":
+                              r_n_cr_nco+=1
+                  
+                  elif ins['weather']=="rainy" and ins['time_period']=="normal" and ins['perception']=="empty":
+                        r_n_em+=1
+                        if ins["co"]=="cooperative":
+                              r_n_em_co+=1
+                        elif ins['co']=="not cooperative":
+                              r_n_em_nco+=1
+                  
+                  elif ins['weather']=="sunny" and ins['time_period']=="normal" and ins['perception']=="corwded":
+                        s_n_cr+=1
+                        if ins["co"]=="cooperative":
+                              s_n_cr_co+=1
+                        elif ins['co']=="not cooperative":
+                              s_n_cr_nco+=1
+                  
+                  elif ins['weather']=="sunny" and ins['time_period']=="normal" and ins['perception']=="empty":
+                        s_n_em+=1
+                        if ins["co"]=="cooperative":
+                              s_n_em_co+=1
+                        elif ins['co']=="not cooperative":
+                              s_n_em_nco+=1
+                  
+                  elif ins['weather']=="sunny" and ins['time_period']=="busy" and ins['perception']=="crowded":
+                        s_b_cr+=1
+                        if ins["co"]=="cooperative":
+                              s_b_cr_co+=1
+                        elif ins['co']=="not cooperative":
+                              s_b_cr_nco+=1
+                  
+                  elif ins['weather']=="sunny" and ins['time_period']=="busy" and ins['perception']=="empty":
+                        s_b_em+=1
+                        if ins["co"]=="cooperative":
+                              s_b_em_co+=1
+                        elif ins['co']=="not cooperative":
+                              s_b_em_nco+=1
+            
+            assert (r_b_cr_co+r_b_cr_nco)==r_b_cr, 'Probability error'
+            
+            p1=r_b_cr_co/(r_b_cr+1)
+            p2=r_b_em_co/(r_b_em+1)
+            p3=s_b_cr_co/(s_b_cr+1)
+            p4=s_b_em_co/(s_b_em+1)
+            
+            p5=r_n_cr_co/(r_n_cr+1)
+            p6=r_n_em_nco/(r_n_em+1)
+            p7=s_n_cr_co/(s_n_cr+1)
+            p8=s_n_em_nco/(s_n_em+1)
 
+            f=[p1,p2,p3,p4,p5,p6,p7,p8]
+            #result=list(np.absolute(np.array(f)-np.array(f_expected)))
+            #avg=sum(result)/len(result)
+            return f
+      
+      def minor_check_cr(self,instance_list):
+            b_cr=0
+            b_cr_cr=0
+            b_cr_em=0
+            
+            b_em=0
+            b_em_cr=0
+            b_em_em=0
 
-      def check_conditional_probability(self,instance_list):
-            s_b=0
-            s_b_cr=0
-            s_b_em=0
-            s_n=0
-            s_n_cr=0
-            s_n_em=0
+            n_cr=0
+            n_cr_cr=0
+            n_cr_em=0
+            
+            n_em=0
+            n_em_cr=0
+            n_em_em=0
             for ins in instance_list:
-                  if ins['weather']=="sunny":
-                        if ins['time_period']=="busy":
-                              s_b+=1
-                              if ins['cr']=="crowded":
-                                    s_b_cr+=1
-                              else:
-                                    s_b_em+=1
-                              #cr=self.sample(self.crowded_list,[0.5,0.5])
+                  if ins['time_period']=="busy":
+                        if ins['perception']=="crowded":
+                              b_cr+=1
+                              if ins['cr']=='crowded':
+                                    b_cr_cr+=1
+                              elif ins['cr']=='empty':
+                                    b_cr_em+=1                        
+                        elif ins['perception']=="empty":
+                              b_em+=1
+                              if ins['cr']=='crowded':
+                                    b_em_cr+=1
+                              elif ins['cr']=='empty':
+                                    b_em_em+=1
+                  
+                  elif ins['time_period']=="normal":                      
+                        if ins['perception']=="crowded":
+                              n_cr+=1
+                              if ins['cr']=='crowded':
+                                    n_cr_cr+=1
+                              elif ins['cr']=='empty':
+                                    n_cr_em+=1
                         
-                        elif ins['time_period']=="normal":
-                              s_n+=1
-                              if ins['cr']=="crowded":
-                                    s_n_cr+=1
-                              else:
-                                    s_n_em+=1
-                              #cr=self.sample(self.crowded_list,[0.1,0.9])
-                  
-                  elif ins['weather']=="rainy":
-                        if ins['time_period']=="busy":
-                              cr=self.sample(self.crowded_list,[0.9,0.1])
-                        elif ins['time_period']=="normal":
-                              cr=self.sample(self.crowded_list,[0.5,0.5])
+                        elif ins['perception']=="empty":
+                              n_em+=1
+                              if ins['cr']=='crowded':
+                                    n_em_cr+=1
+                              elif ins['cr']=='empty':
+                                    n_em_em+=1
+            p1=round(float(b_cr_em/(b_cr+1)),4)
+            p2=round(float(b_em_em/(b_em+1)),4)
+            p3=round(float(n_cr_em/(n_cr+1)),4)
+            p4=round(float(n_em_em/(n_em+1)),4)
+            f=[p1,p2,p3,p4]
+            return f
+
+      def minor_check_reasoner(self,instance_list,cr_expect,co_expect,cr_query,co_query):
+            cr=self.minor_check_cr(instance_list)
+            co=self.minor_check_co(instance_list)
             
-            cr_r_t=0
-            cr_r_s=0
-            cr_r_c=0
-            cr_r_t_co=0
-            cr_r_s_co=0
-            cr_r_c_co=0
+            f=open("prob.txt","a")
+            f.write("\nCr stat"+str(cr))
+            
+            f.write("\nCr Reasoner"+str(cr_query))
+            f.write("\nCr Expected"+str(cr_expect))
+            
+            f.write("\nCr stat"+str(co))
+            f.write("\nCr Reasoner"+str(co_query))
+            f.write("\nCr Expected"+str(co_expect))
+            f.close()
+      
+      def minor_check_prob(self,list1,list2):
+            result=list(np.absolute(np.array(list1)-np.array(list2)))
+            avg=sum(result)/len(result)
+            return avg
 
-            em_s_t=0
-            em_s_s=0
-            em_s_c=0
-            em_s_t_co=0
-            em_s_s_co=0
-            em_s_c_co=0
 
+
+      
+      def minor_generate_query_evidence(self):
+            instance1={"time_period":"busy","weather":"rainy","perception":"crowded","cr":"crowded","co":None}
+            instance2={"time_period":"busy","weather":"rainy","perception":"empty","cr":"crowded","co":None}
+            instance3={"time_period":"busy","weather":"sunny","perception":"crowded","cr":"empty","co":None}
+            instance4={"time_period":"busy","weather":"sunny","perception":"empty","cr":"empty","co":None}
+            
+            instance5={"time_period":"normal","weather":"rainy","perception":"crowded","cr":"crowded","co":None}
+            instance6={"time_period":"normal","weather":"rainy","perception":"empty","cr":"crowded","co":None}
+            instance7={"time_period":"normal","weather":"sunny","perception":"crowded","cr":"crowded","co":None}
+            instance8={"time_period":"normal","weather":"sunny","perception":"empty","cr":"crowded","co":None}
+            
+            
+            f=open("reasoner/query.db","w")
+            Reasoner.minor_output_evd(f,instance1,"1")
+            Reasoner.minor_output_evd(f,instance2,"2")
+            Reasoner.minor_output_evd(f,instance3,"3")
+            Reasoner.minor_output_evd(f,instance4,"4")
+            Reasoner.minor_output_evd(f,instance5,"5")
+            Reasoner.minor_output_evd(f,instance6,"6")
+            Reasoner.minor_output_evd(f,instance7,"7")
+            Reasoner.minor_output_evd(f,instance8,"8")
+            f.close()
+
+            f=open("reasoner/query_r.db","w")
+            Reasoner.minor_output_evd_r(f,instance1,"1")
+
+            Reasoner.minor_output_evd_r(f,instance3,"2")
+
+            Reasoner.minor_output_evd_r(f,instance5,"3")
+
+            Reasoner.minor_output_evd_r(f,instance7,"4")
+
+            f.close()
+
+            f=open("reasoner/query_cr.db","w")
+            Reasoner.minor_output_evd_cr(f,instance1,"1")
+
+            Reasoner.minor_output_evd_cr(f,instance2,"2")
+
+            Reasoner.minor_output_evd_cr(f,instance5,"3")
+
+            Reasoner.minor_output_evd_cr(f,instance6,"4")
+            f.close()
+
+            f=open("reasoner/query_r_cr.db","w")
+            Reasoner.minor_output_evd_cr(f,instance1,"1")
+
+            Reasoner.minor_output_evd_cr(f,instance2,"2")
+
+            Reasoner.minor_output_evd_cr(f,instance5,"3")
+
+            Reasoner.minor_output_evd_cr(f,instance6,"4")
+            f.close()
+      
+      def minor_query_reasoner(self,q,instance_list):
             for ins in instance_list:
-                  if ins['cr']=="crowded":
-                        if ins['weather']=='rainy':
-                              if ins['vehicle_type']=="truck":
-                                    cr_r_t+=1
-                                    if ins['co']=="cooperative":
-                                          cr_r_t_co+=1
-                                    #co=self.sample(self.willingness_list,[0.1,0.9]) 
-                              elif ins['vehicle_type']=="sport":
-                                    cr_r_s+=1
-                                    if ins['co']=="cooperative":   
-                                          cr_r_s_co+=1
-                                    #co=self.sample(self.willingness_list,[0.2,0.8])
-                              elif ins['vehicle_type']=="sedan":
-                                    cr_r_c+=1
-                                    if ins['co']=="cooperative":  
-                                          cr_r_c_co+=1
-                                    #co=self.sample(self.willingness_list,[0.3,0.7])
+                  if ins['time_period']=="busy":
+                        if ins['weather']=="rainy":
+                              if ins['perception']=="crowded":
+                                    ins["co_reasoning"]=q[0]
+                              elif ins['perception']=="empty":
+                                    ins["co_reasoning"]=q[1]
+                  
+                        elif ins['weather']=="sunny" :
+                              if ins['perception']=="crowded":
+                                    ins["co_reasoning"]=q[2]
+                              elif ins['perception']=="empty":
+                                    ins["co_reasoning"]=q[3]
+
+                  elif ins['time_period']=="normal":
+                        if ins['weather']=="rainy":
+                              if ins['perception']=="crowded":
+                                    ins["co_reasoning"]=q[4]
+                              elif ins['perception']=="empty":
+                                    ins["co_reasoning"]=q[5]
+                  
                         elif ins['weather']=="sunny":
-                              co=self.sample(self.willingness_list,[0.5,0.5])
-                  
-                  elif ins['cr']=="empty":
-                        if ins['weather']=='sunny':
-                              if ins['vehicle_type']=="truck":
-                                    em_s_t+=1
-                                    if ins['co']=="cooperative":
-                                          em_s_t_co+=1
-                                    #co=self.sample(self.willingness_list,[0.9,0.1])
-                              elif ins['vehicle_type']=="sport":
-                                    #co=self.sample(self.willingness_list,[0.8,0.2])
-                                    em_s_s+=1
-                                    if ins['co']=="cooperative":
-                                          em_s_s_co+=1
-                              elif ins['vehicle_type']=="sedan":
-                                    #co=self.sample(self.willingness_list,[0.7,0.3])
-                                    em_s_c+=1
-                                    if ins['co']=="cooperative":
-                                          em_s_c_co+=1
-                        elif ins['weather']=='rainy':
-                              co=self.sample(self.willingness_list,[0.5,0.5])
-            p_cr_r_t_co=cr_r_t_co/cr_r_t
-            p_cr_r_s_co=cr_r_s_co/cr_r_s
-            p_cr_r_c_co=cr_r_c_co/cr_r_c
-
-            p_em_s_t_co=em_s_t_co/em_s_t
-            p_em_s_s_co=em_s_s_co/em_s_s
-            p_em_s_c_co=em_s_c_co/em_s_c
-
-            print(p_cr_r_t_co)
-            print(p_cr_r_s_co)
-            print(p_cr_r_c_co)
-            
-            print(p_em_s_t_co)
-            print(p_em_s_s_co)
-            print(p_em_s_c_co)
-            return p_cr_r_t_co,p_cr_r_s_co,p_cr_r_c_co,p_em_s_t_co,p_em_s_s_co,p_em_s_c_co
+                              if ins['perception']=="crowded":
+                                    ins["co_reasoning"]=q[6]
+                              elif ins['perception']=="empty":
+                                    ins["co_reasoning"]=q[7]
       
-      def reason(self,result_file):
-            cooperative=Reasoner.read_result(result_file)
-            return cooperative
-      
-      def save_instance(self,instance,result_file="abstract_sim_results"):
-            f=open(result_file,"a")
-            f.write(instance)
-            f.close()
-      
-      def mln_evaluation(self,num_trial):
-            #p_co_list=Reasoner.read_result("0810.result")
-            abs_total_reason=0
-            abs_total_random=0
-            instance_list=[]
-            evidence_file_name="0810.db"
-            f=open("reasoner/"+evidence_file_name,"w")
-            for i in range(0,num_trial):
-                  instance=self.create_instance([0.84,0.16,0.84,0.16])
-                  instance_list.append(instance)
-                  index=str(i)
-                  Reasoner.output_evidence(f,instance,index)
-                  
-            f.close()
-            Reasoner.infer(mln_file="trained_300.mln",evidence_file="0810.db",result_file="0810.result")
-            p_co_list=Reasoner.read_result("0810.result")
-            i=0
+      def minor_query_reasoner_r(self,q,instance_list):
             for ins in instance_list:
-                  ins["co_reasoning"]=p_co_list[i]
-                  p_co=round(float(p_co_list[i]),3)
-                  if ins['co']=="cooperative":
-                        abs_total_reason+=abs(1-p_co)
-                  elif ins['co']=="not cooperative":
-                        abs_total_reason+=abs(0-p_co)
-                  abs_total_random+=0.5
-                  i+=1
-            abs_average_reason=abs_total_reason/len(instance_list)
-            abs_average_random=abs_total_random/len(instance_list)
-            print("Probabilistic soft variation of random is:",abs_average_random)
-            print("Probabilistic soft variation of reasoning is:",abs_average_reason)
+                  if ins['time_period']=="busy":
+                        if ins['weather']=="rainy":
+                              ins["co_reasoning"]=q[0]
+                        elif ins['weather']=="sunny" :
+                              ins["co_reasoning"]=q[1]
+                  
+                  elif ins['time_period']=="normal":
+                        if ins['weather']=="rainy":
+                              ins["co_reasoning"]=q[2]                 
+                        elif ins['weather']=="sunny":
+                              ins["co_reasoning"]=q[3]
       
-      def run_with_learning(self,batch_size,num_batches):
-            batch_count=0
-            while batch_count < num_batches:
-                  if batch_count==0:
-                        self.run_uniform(batch_size)
-                  else:
-                        self.run(batch_count,batch_size)
-                  Reasoner.learn_weights(train_data="train.db")
-                  batch_count+=1
+      def minor_query_congestion(self,q,instance_list):          
+            for ins in instance_list:
+                  if ins['time_period']=="busy":
+                        if ins['perception']=='crowded':
+                              ins["cr_reasoning"]=q[0]
+                        elif ins['perception']=='empty':
+                              ins["cr_reasoning"]=q[1]             
+                  elif ins['time_period']=="normal":
+                        if ins['perception']=='crowded':
+                              ins["cr_reasoning"]=q[2]
+                        elif ins['perception']=='empty':
+                              ins["cr_reasoning"]=q[3]
       
-      def run_uniform(self,num_trial):
-            planner=Planner()
-            instance_list=[]
-            r=0
+      def minor_query_congestion_r(self,q,instance_list):          
+            for ins in instance_list:
+                  if ins['time_period']=="busy":
+                              ins["cr_reasoning"]=q[1]                             
+                  elif ins['time_period']=="normal":
+                              ins["cr_reasoning"]=q[3]
+      
+      def minor_get_metrics(self,ins_list):
+            reward=0
             cost=0
-            average_reward=0
-            #average_cost=0
-            for i in range(0,num_trial):
-                  instance=self.create_instance(i,[0.5,0.5,0.5,0.5])
-                  instance['co_reasoning']=0.5
-                  instance_list.append(instance)
-                  index=str(i)
-                  Reasoner.output_data("train.db",instance,index)
-                  instance['result']=planner.run(instance)
-                  r+=instance['reward']
-                  cost+=instance['cost']
-            average_reward=r/len(instance_list)
-            average_cost=cost/len(instance_list)
-            f=open("batch_result.txt",'a')
-            f.write("The average cost for btach 0 is:"+str(average_cost)+"\n")
-            f.write("The average reward for btach 0 is:"+str(average_reward)+"\n\n")
-            f.close()
-
+            success=0
+            for ins in ins_list:
+                  reward+=ins['reward']
+                  cost+=ins['cost']
+                  if ins['result']=="Successful":
+                        success+=1
+            l=len(ins_list)
+            avg_r=reward/l
+            avg_c=cost/l
+            avg_s=success/l
+            return avg_r,avg_c,avg_s
       
-      def run(self,batch_count,batch_size):
-            planner=Planner()           
-            instance_list=[]
-            evidence_file_name="0814.db"
-            start_index=batch_count*batch_size
-            end_index=start_index+batch_size
-            
-            f=open("reasoner/"+evidence_file_name,"w")
-            for i in range(start_index,end_index):
-                  instance=self.create_instance(i,[0.84,0.16,0.84,0.16])
-                  instance_list.append(instance)
-                  index=str(i)
-                  Reasoner.output_data("train.db",instance,index)
-                  Reasoner.output_evidence(f,instance,index)
-            f.close()
-            
-            Reasoner.infer(mln_file="trained.mln",evidence_file="0814.db",result_file="0814.result")
-            p_cooperative=Reasoner.read_result("0814.result")
-            print("The proability of cooperative infered by MLN is",p_cooperative)
-            i=0
-            for ins in instance_list:
-                  ins["co_reasoning"]=p_cooperative[i]
-                  i+=1
-                  ins['result']=planner.run(ins)
-            
-            success_count=0
-            failure_count=0
-            abs_total_reason=0
-            r=0
-            cost=0
-            f=open("abstract_sim_data.json","a")
-            for ins in instance_list:
-                  if ins["result"]=="Successful":
-                        success_count+=1
-                  elif ins['result']=="Failed":
-                        failure_count+=1  
-                  p_co=round(float(ins['co_reasoning']),3)
-                  if ins['co']=="cooperative":
-                        abs_total_reason+=abs(1-p_co)
-                  elif ins['co']=="not cooperative":
-                        abs_total_reason+=abs(0-p_co)                   
-                  r=r+ins['reward']
-                  cost=cost+ins['cost']
-                  js=json.dumps(ins)
-                  f.write(js)
-                  f.write("\n")
-            f.close()
-            success_rate=success_count/len(instance_list)
-            average_reward=r/len(instance_list)
-            abs_average_reason=abs_total_reason/len(instance_list)
-            average_cost=cost/len(instance_list)
-            f=open("batch_result.txt",'a')
-            f.write("The success_rate of btach "+str(batch_count)+" is:"+str(success_rate)+"\n")
-            f.write("The average reward of btach "+str(batch_count)+" is:"+str(average_reward)+"\n")
-            f.write("The average cost of btach "+str(batch_count)+" is:"+str(average_cost)+"\n")
-            f.write("Probabilistic soft variation of reasoning is:"+str(abs_average_reason)+"\n\n")
-            f.close()
-            #print("Success rate is:", success_rate)
-            #print("Average reward is:",average_reward)
-      
-
-      def evaluate_pomdp(self,num_trial):
-            planner=Planner()
-            instance_list=[]
-            success_count=0
-            failure_count=0
-            reward_list=[]
-            cost_list=[]
-            r=0
-            cost=0
-            
-            reward_gt_list=[]
-            cost_gt_list=[]
-            r_gt=0
-            cost_gt=0
-            success_gt=0
-            failure_gt=0
-            
-            #we do not the truth and it is like to flip a coin to judge 
-            #whether the responding driver is cooperative or not
-            f=open("uniform_belief_pomdp.json","w")
-            for i in range(0,num_trial):
-                  instance=self.create_instance(i,[0.84,0.16,0.84,0.16])
-                  instance_list.append(instance)
-                  instance['co_reasoning']=0.5
-                  instance['result']=planner.run(instance)
-                  if instance["result"]=="Successful":
-                        success_count+=1
-                  elif instance['result']=="Failed":
-                        failure_count+=1
-                  r=r+instance['reward']
-                  cost=cost+instance['cost']
-                  reward_list.append(instance['reward'])
-                  cost_list.append(instance['cost'])
-                  
-                  js=json.dumps(instance)
-                  f.write(js)
-                  f.write("\n")
-            f.close()
-            
-            #we know exactly that the responding driver is cooperative or not
-            f=open("ground_truth_belief_pomdp.json","w")
-            for ins in instance_list:
-                  if ins['co']=="cooperative":
-                        ins['co_reasoning']=1
-                  elif ins['co']=="not cooperative":
-                        ins['co_reasoning']=0
-                  
-                  ins['result']=planner.run(ins)
-                  if ins["result"]=="Successful":
-                        success_gt+=1
-                  elif ins['result']=="Failed":
-                        failure_gt+=1
-                  r_gt=r_gt+ins['reward']
-                  cost_gt+=ins['cost']
-                  reward_gt_list.append(ins['reward'])
-                  cost_gt_list.append(ins['cost'])
-                  
-                  
-                  js=json.dumps(ins)
-                  f.write(js)
-                  f.write("\n")
-            f.close()
-            
-            count=len(instance_list)
-            
-            success_rate=success_count/count
-            average_cost=cost/count
-            average_reward=r/count
-           
-            
-            success_rate_gt=success_gt/count
-            average_cost_gt=cost_gt/count
-            average_reward_gt=r_gt/count
-            
-            std_reward=st.stdev(reward_list)
-            std_reward_gt=st.stdev(reward_gt_list)
-            std_cost=st.stdev(cost_list)
-            std_cost_gt=st.stdev(cost_gt_list)
-            
-            
-            print(num_trial)
-            print("\nSuccess rate with uniform initial belief is:", success_rate)
-            print("Failed cases: ",failure_count)
-            print("Average cost with uniform initial belief is:%s standard deviation is %s" % (average_cost,std_cost))
-            print("Average reward with uniform initial belief is:%s standard deviation is %s" %(average_reward,std_reward))
-
-            print("\nSuccess rate with cooperative with ground truth belief is:", success_rate_gt)
-            print("Failed cases: ",failure_gt)
-            print("Average cost with with ground truth belief is: %s, standard deviation is %s" %(average_cost_gt,std_cost_gt))
-            print("Average reward with with ground truth belief is: %s, standard deviation is %s" %(average_reward_gt,std_reward_gt))
-            return average_cost,average_reward,average_cost_gt,average_reward_gt
-            #Reasoner.output_evidence("0810.db",instance,index)
-      
-      def run_mln_pomdp(self):
-            planner=Planner()           
-            instance_list=[]
-            evidence_file_name="0810.db"
-            f=open("reasoner/"+evidence_file_name,"w")
-            for i in range(0,200):
-                  instance=self.create_instance(i,[0.84,0.16,0.84,0.16])
-                  instance_list.append(instance)
-                  index=str(i)
-                  Reasoner.output_evidence(f,instance,index)
-            f.close()
-            Reasoner.infer(mln_file="trained_300.mln",evidence_file="0810.db",result_file="0810.result")
-            p_cooperative=Reasoner.read_result("0810.result")
-            print("The proability of cooperative infered by MLN is",p_cooperative)
-            i=0
-            for ins in instance_list:
-                  ins["co_reasoning"]=p_cooperative[i]
-                  i+=1
-                  ins['result']=planner.run(ins)
-            success_count=0
-            failure_count=0
-            r=0
-            f=open("abstract_sim_data.json","w")
-            for ins in instance_list:
-                  if ins["result"]=="Successful":
-                        success_count+=1
-                  elif ins['result']=="Failed":
-                        failure_count+=1
-                  r=r+ins['reward']
-                  js=json.dumps(ins)
-                  f.write(js)
-                  f.write("\n")
-            f.close()
-            success_rate=success_count/len(instance_list)
-            average_reward=r/len(instance_list)
-            print("Success rate is:", success_rate)
-            print("Average reward is:",average_reward)
-
-      
-      def trial(self):
-            planner=Planner()
-            i=0
-            instance=self.create_instance(i,[0.84,0.16,0.84,0.16])
-            evidence_file="trial.db"
-            f=open("reasoner/"+evidence_file,"w")
-            Reasoner.output_evidence(f,instance,'Trial')
-            f.close()
-            Reasoner.infer(mln_file="trained_300.mln",evidence_file="trial.db",result_file="trial.result")
-            p_cooperative=Reasoner.read_result("trial.result")
-            instance["co_reasoning"]=p_cooperative[0]
-            instance['result']=planner.run(instance)
-            print("\n\nThe Ground Truth:",instance["weather"],instance["time_period"],instance["vehicle_type"],instance['cr'],instance['co'])
-            print("perception:",instance['perception'],"cooperative_reasoning:",instance['co_reasoning'],"Accumalative reward is:",instance["reward"],"Terminal result is:",)
-      
-      def evaluate_mln(self,start_index,num_trials,test_list,test_data):
-            evidence_file_name="test.db"
-            instance_list=[]
-            abs_total_reason=0
-            abs_total_soft=0
-            abs_total_real=0
-            probability_gap_list=[]
-            end_index=start_index+num_trials
-            
-            f=open("reasoner/"+evidence_file_name,"w")
-            for i in range(start_index,end_index):
-                  instance=self.create_instance(i,[0.84,0.16,0.84,0.16])
-                  instance_list.append(instance)
-                  index=str(i)
-                  Reasoner.output_data("train.db",instance,index)
-                  Reasoner.output_evidence(f,instance,index)
-            f.close()
-            
-            Reasoner.learn_weights(train_data="train.db")
-            Reasoner.infer(mln_file="trained.mln",evidence_file=test_data,result_file="test.result")
-            p_co_list=Reasoner.read_result("test.result")
-            
-            
-            f=open("mln_data.json","w")
-            i=0
-            for ins in test_list:
-                  ins["co_reasoning"]=p_co_list[i]
-                  p_co=round(float(p_co_list[i]),3)
-                  if ins['co']=="cooperative":
-                        abs_total_reason+=abs(1-p_co)
-                        abs_total_soft+=abs(1-ins['co_soft'])
-
-                  elif ins['co']=="not cooperative":
-                        abs_total_reason+=abs(0-p_co)
-                        abs_total_soft+=abs(0-ins['co_soft'])
-                  
-                  abs_total_real+=abs(p_co-ins['co_soft'])
-                  i+=1
-                  probability_gap_list.append(abs(p_co-ins['co_soft']))               
-            f.close()
-            
-            count=len(instance_list)
-            abs_average_reason=abs_total_reason/count
-            abs_average_soft=abs_total_soft/count
-            abs_average_real=abs_total_real/count
-            std_deviation=st.stdev(probability_gap_list)
-            #print("Probabilistic soft variation of reasoning is:",abs_average_reason)
-            #print("Probabilistic soft variation of soft is:",abs_average_soft)
-            print(str(num_trials)+" Average difference between expected probability and mln output is:%s, standard deviation is:%s" %(abs_average_real,std_deviation))
-            return abs_average_real
-            
-            
-      def plot_pomdp(self,num_trials):
-            cost=[]
-            cost_gt=[]
-            reward=[]
-            reward_gt=[]
-            batches=[]
-            for i in range(1000,num_trials,500):
-                  average_cost,average_reward,average_cost_gt,average_reward_gt=self.evaluate_pomdp(i)
-                  cost.append(average_cost)
-                  cost_gt.append(average_cost_gt)
-                  reward.append(average_reward)
-                  reward_gt.append(average_reward_gt)
-                  batches.append(i)
-      
-            plt.figure(figsize=(8,6))
-            plt.subplot(121)
-            plt.plot(batches,cost,'-b',label="uniform initial belief")
-            plt.plot(batches,cost_gt,'-r',label='ground truth initial belief')
-            plt.xlabel('Number of trials')
-            plt.ylabel('Average Cost')
-            plt.legend(loc='upper left', shadow=True, fontsize='xx-small')
-            plt.subplot(122)
-            plt.plot(batches,reward,'-b',label="uniform initial belief") 
-            plt.plot(batches,reward_gt,'-r',label='ground truth initial belief')
-            plt.xlabel('Number of trials')
-            plt.ylabel('Average Reward')
-            plt.legend(loc='upper left', shadow=True, fontsize='xx-small')
-            plt.suptitle('Performance of POMDP')
-            plt.show()
-            plt.savefig("performance_of_pomdp.pdf")
-            print("Finished")
-      
-      def plot_mln(self,max_num):
-            probability_gap=[]
-            samples_size=[]
-            
-            #generate test set
+      def minor_create_testdata(self,num_data,conf1,conf2):
             test_list=[]
-            f=open("reasoner/test.db","w")
-            for i in range(0,3000):
-                  instance=self.create_instance(i,[0.84,0.16,0.84,0.16])
+            #f=open("reasoner/test.db","w")
+            for i in range(0,num_data):
+                  instance=self.minor_create_instance(conf1,conf2)
                   test_list.append(instance)
-                  Reasoner.output_evidence(f,instance,str(i))
-            f.close()
-            count=len(test_list)
-            
-            
-            for i in range(2000,max_num,1000):
-                  average_gap=self.evaluate_mln(i,1000,test_list,"test.db")
-                  probability_gap.append(average_gap)
-                  samples_size.append(i)
+                  #Reasoner.minor_output_evd(f,instance,str(i))
+            #f.close()     
+            return test_list
+
+      def save_data(self,instances,name):
+            f=open(name+".json","w")
+            for ins in instances:
+                  js=json.dumps(ins)
+                  f.write(js)
+                  f.write("\n")
+            f.close()  
+      
+      def minor_planning(self,planner,instance_list):
+            for ins in instance_list:
+                  ins['result']=planner.run(ins)
+      
+      def minor_planning_pr(self,planner,instance_list):
+            for ins in instance_list:
+                  ins['result']=planner.run_pr(ins) 
+      
+      def minor_plot_trend(self,xlist,ylist,xlabel,ylabel,name):
             plt.figure()
-            plt.plot(samples_size,probability_gap,'-b')
-            plt.xlabel("Number of Samples for learning weights")
-            plt.ylabel("Average probability difference from expected optimal")
-            plt.suptitle('Performance of MLN')
-            plt.show()
-            plt.savefig("performance_of_mln.pdf")
-      
-      #def plot_learning(self,train_size):
+            plt.plot(xlist,ylist,'.-b')
+            #plt.plot(samples,frequency_list,'.-r')
+            #plt.plot(samples,avg_list,'.-g')
+            #plt.plot(samples,reasoning_list,'.-y')
+            plt.xlabel(xlabel)
+            plt.ylabel(ylabel)
 
+            plt.savefig(name)
+            plt.show()
+
+
+            plt.close()
       
-      def plot_p_r_a(self,train_size):
-            test_list=[]
-            f=open("reasoner/test.db","w")
-            for i in range(0,100):
-                  instance=self.create_instance(i,[0.84,0.16,0.84,0.16])
-                  test_list.append(instance)
-                  Reasoner.output_evidence(f,instance,str(i))
-            f.close()
-            
-            instance_list=[]
-            #evidence_file_name='train_pra.db'
-            #f=open("reasoner/"+evidence_file_name,"w")
-            for i in range(0,train_size):
-                  instance=self.create_instance(i,[0.84,0.16,0.84,0.16])
-                  instance_list.append(instance)
-                  index=str(i)
-                  Reasoner.output_data("train_pra.db",instance,index)
-                  #.output_evidence(f,instance,index)
-            #f.close()
-            
-            test_data="test.db"
-            Reasoner.learn_weights(train_data="train_pra.db",output_file="trained_pra.mln")
-            Reasoner.infer(mln_file="trained_pra.mln",evidence_file=test_data,result_file="test_pra.result")
-            p_co_list=Reasoner.read_result("test_pra.result")
-           
+      #  Planning only (A): purely POMDP-based, assuming that people are all cooperative at the beginning of the interaction.
+      def minor_a(self,planner,instance_list):
             i=0
-            r_pra=0
-            cost_pra=0
-            planner=Planner()
-            for ins in test_list:
-                  ins["co_reasoning"]=p_co_list[i]
-                  ins['result']=planner.run(ins)
+            for ins in instance_list:
                   i+=1
-                  r_pra=r_pra+ins['reward']
-                  cost_pra+=ins['cost']
-            
-            r_a=0
-            cost_a=0
-            for ins in test_list:
+                  print("\n\nWith uniform distribution reasoning")
+                  ins["pomdp"]=[]
                   ins["co_reasoning"]=0.5
-                  ins['result']=planner.run(ins)
-                  r_a=r_pra+ins['reward']
-                  cost_a+=ins['cost']
-            
-            r_ra=0
-            cost_ra=0
-            for i in range(0,train_size):
-                  instance=self.create_instance(i,[0.5,0.5,0.5,0.5])
-                  index=str(i)
-                  Reasoner.output_data("train_ra.db",instance,index)
-
-            Reasoner.learn_weights(train_data="train_ra.db",output_file="trained_ra.mln")
-            Reasoner.infer(mln_file="trained_ra.mln",evidence_file=test_data,result_file="test_ra.result")
-            p_co_list=Reasoner.read_result("test_ra.result")
-            
+                  ins["cr_reasoning"]=0.5
+                  print("Instance:",i,ins)
+                  ins["result"]=planner.run(ins)
+                  
+      
+      def minor_a_gt(self,planner,instance_list):
             i=0
-            for ins in test_list:
-                  ins["co_reasoning"]=p_co_list[i]
-                  ins['result']=planner.run(ins)
+            for ins in instance_list:
                   i+=1
-                  r_ra=r_ra+ins['reward']
-                  cost_ra+=ins['cost']
-            
-            reward_list=[]
-            cost_list=[]
-            
-            count=len(test_list)
-            avg_reward_pra=r_pra/count
-            avg_cost_pra=cost_pra/count
-            
-            avg_reward_ra=r_ra/count
-            avg_cost_ra=cost_ra/count
-            
-            avg_reward_a=r_a/count
-            avg_cost_a=cost_a/count
-            
-            reward_list.append(avg_reward_a)
-            reward_list.append(avg_reward_ra)
-            reward_list.append(avg_reward_pra)
-            cost_list.append(avg_cost_a)
-            cost_list.append(avg_cost_ra)
-            cost_list.append(avg_cost_pra)
-            names=['A','R+A','P+R+A']
+                  print("\n\nWith accurate logical reasoning")
+                  ins["pomdp"]=[]
+                  if ins['co']=="cooperative":
+                        ins["co_reasoning"]=1.0
+                  elif ins['co']=='not cooperative':
+                        ins["co_reasoning"]=0.0                
+                  if ins['cr']=="empty":
+                        ins["cr_reasoning"]=1.0
+                  elif ins['cr']=='crowded':
+                        ins["cr_reasoning"]=0.0                
+                  print("Instance:",i,ins)
+                  ins["result"]=planner.run(ins)
+      
+      def minor_a_test(self,planner,instance_list):
+            a_r=[]
+            a_c=[]
+            a_s=[]
+            a_r_gt=[]
+            a_c_gt=[]
+            a_s_gt=[]
+            for i in range(5):
+                  self.minor_a(planner,instance_list)
+                  self.save_data(instance_list,"A")
+                  avg_r_a,avg_c_a,avg_s_a=self.minor_get_metrics(instance_list)
+                  a_r.append(avg_r_a)
+                  a_c.append(avg_c_a)
+                  a_s.append(avg_s_a)
+
+                  self.minor_a_gt(planner,instance_list)
+                  self.save_data(instance_list,"A_gt")
+                  avg_r_a_gt,avg_c_a_gt,avg_s_a_gt=self.minor_get_metrics(instance_list)
+                  a_r_gt.append(avg_r_a_gt)
+                  a_c_gt.append(avg_c_a_gt)
+                  a_s_gt.append(avg_s_a_gt)
+
+                  a_r_d=avg_r_a_gt-avg_r_a
+                  a_c_d=avg_c_a-avg_c_a_gt
+                  a_s_d=avg_s_a_gt-avg_s_a
+
+                  print("The reward gap is:",a_r_d)
+                  print("The cost gap is:",a_c_d)
+                  print("The success gap is:",a_s_d)
+
+            mean_a_r=sum(a_r)/len(a_r)
+            mean_a_c=sum(a_c)/len(a_c)
+            mean_a_s=sum(a_s)/len(a_s)
+
+            mean_a_r_gt=sum(a_r_gt)/len(a_r_gt)
+            mean_a_c_gt=sum(a_c_gt)/len(a_c_gt)
+            mean_a_s_gt=sum(a_s_gt)/len(a_s_gt)
+
+            r=[mean_a_r,mean_a_r_gt]
+            c=[mean_a_c,mean_a_c_gt]
+            s=[mean_a_s,mean_a_s_gt]
+            err_r=[st.stdev(a_r),st.stdev(a_r_gt)]
+            err_c=[st.stdev(a_c),st.stdev(a_c_gt)]
+            err_s=[st.stdev(a_s),st.stdev(a_s_gt)]
+
+
+            baselines=["A","A_gt"]
             plt.figure()
-            plt.subplot(121)          
-            plt.bar(names,reward_list)
+            #plt.subplots()
+            plt.bar(baselines,r,yerr=err_r)
             plt.ylabel("Reward")
+            plt.ylim(50,)
+            plt.savefig("pomdp_r.pdf")
+            plt.close()
             
-            plt.subplot(122)  
-            plt.bar(names,cost_list)
+            plt.figure()
+            #plt.subplots()
+            plt.bar(baselines,c,yerr=err_c)
             plt.ylabel("Cost")
-            #plt.suptitle('Categorical Plotting')
-            plt.show()
-            plt.savefig("comparison.pdf")
+            plt.ylim(5,)
+            plt.savefig("pomdp_c.pdf")
+
+            plt.figure()
+            #plt.subplots()
+            plt.bar(baselines,s,yerr=err_s)
+            plt.ylabel("Successrate")
+            plt.ylim(0.8,1)
+            plt.savefig("pomdp_s.pdf")
+            plt.close()
+
+
+      
+      def minor_del_reasoner_file(self):
+            if os.path.exists("reasoner/test.db"):
+                  os.remove("reasoner/test.db")
+            if os.path.exists("reasoner/train.db"):
+                  os.remove("reasoner/train.db")
+            if os.path.exists("reasoner/train_r.db"):
+                  os.remove("reasoner/train_r.db")
+            if os.path.exists("reasoner/trained.mln"):
+                  os.remove("reasoner/trained.mln")
+            if os.path.exists("reasoner/query.db"):
+                  os.remove("reasoner/query.db")
+            if os.path.exists("reasoner/query_r.db"):
+                  os.remove("reasoner/query_r.db")
+            if os.path.exists("reasoner/query.result"):
+                  os.remove("reasoner/query.result")
+            if os.path.exists("reasoner/query_r.result"):
+                  os.remove("reasoner/query_r.result")  
+            
+            if os.path.exists("reasoner/query_cr.db"):
+                  os.remove("reasoner/query_cr.db")  
+            
+            if os.path.exists("reasoner/query_cr.result"):
+                  os.remove("reasoner/query_cr.result")  
+
+            if os.path.exists("reasoner/query_r_cr.db"):
+                  os.remove("reasoner/query_r_cr.db")  
+            
+            if os.path.exists("reasoner/query_r_cr.result"):
+                  os.remove("reasoner/query_r_cr.result") 
+
+
+      def minor_run(self,test_data,step,batch_num):
+            self.minor_del_reasoner_file()
+            self.minor_generate_query_evidence()
+            conf1=[0.9,0.1]
+            conf2=[0.1,0.9]
+            cr_expect=[]
+            co_expect=[]
+            
+            #test_data=self.minor_create_testdata(3000,conf1,conf2)
+            test_data=test_data
+            cr_test=self.minor_check_cr(test_data)
+            co_test=self.minor_check_co(test_data)
+            
+            data_list=[]
+            index=0
+            index_r=0
+            planner=Planner()
+            lpra_r=[]
+            lpra_c=[]
+            lpra_s=[]
+            a_r=[]
+            a_c=[]
+            a_s=[]
+            samples=[]
+            cr_diffs=[]
+            co_diffs=[]
+            for i in range(1,batch_num):
+                  samples.append(i)
+
+                  #generate training data
+                  #training_data=self.minor_generate_data(step,conf1,conf2)
+                  training_data=random.choices(test_data,k=step)
+                  data_list=data_list+training_data
+                  print("Length is",len(data_list))
+                  
+                  #generate training evidences for LPRA
+                  f=open("reasoner/train.db","a")
+                  for ins in training_data:
+                        Reasoner.minor_output_data(f,ins,str(index))
+                        index+=1
+                  f.close()
+
+                  #generate training evidence for RA
+                  f=open("reasoner/train_r.db","a")
+                  for ins in training_data:
+                        Reasoner.minor_output_data_r(f,ins,str(index_r))
+                        index_r+=1
+                  f.close()
+                  
+                  #learn the weights from training data for LPRA
+                  Reasoner.learn_weights(input_file="autocar.mln",output_file="trained.mln",train_data="train.db")
+                  Reasoner.infer_cr(result_file="query_cr.result",evidence_file="query_cr.db")
+                  Reasoner.infer(result_file="query.result",evidence_file="query.db")
+
+                  #learn the weights from training data for RA
+                  #Reasoner.learn_weights(input_file="autocar_r.mln",output_file="trained_r.mln",train_data="train_r.db")
+                  Reasoner.infer_cr(result_file="query_r_cr.result",evidence_file="query_r_cr.db")
+                  Reasoner.infer(result_file="query_r.result",evidence_file="query_r.db")
+                  
+                  #get the query results for LPRA
+                  co_query=Reasoner.read_result("query.result")
+                  cr_query=Reasoner.read_result_cr("query_cr.result")
+                  
+                  #self.minor_check_reasoner(training_data,cr_expect,co_expect,cr_query,co_query)
+                  #check the reasoner learning result
+                  cr_diff=self.minor_check_prob(cr_query,cr_test)
+                  co_diff=self.minor_check_prob(co_query,co_test)
+                  co_diffs.append(co_diff)
+                  cr_diffs.append(cr_diff)
+                  
+                  #get the query resultf for RA
+                  co_query_r=Reasoner.read_result("query_r.result")
+                  cr_query_r=Reasoner.read_result_cr("query_r_cr.result")
+                  
+                  print(co_query)
+                  print(co_query_r)
+                  
+                  # map the LPRA reasoning results to test data
+                  self.minor_query_reasoner(co_query,test_data)
+                  self.minor_query_congestion(cr_query,test_data)
+                  self.minor_planning(planner,test_data)
+                  self.save_data(test_data,"lpra")
+
+                  avg_r,avg_c,avg_s=self.minor_get_metrics(test_data)
+                  
+                  lpra_r.append(avg_r)
+                  lpra_c.append(avg_c)
+                  lpra_s.append(avg_s)
+
+                  # map the PR results to test data
+                  self.minor_planning_pr(planner,test_data)
+                  self.save_data(test_data,"pr")
+                  avg_r_pr,avg_c_pr,avg_s_pr=self.minor_get_metrics(test_data)
+
+
+                  # map the RA reasoning results to test data
+                  self.minor_query_reasoner_r(co_query,test_data)
+                  self.minor_query_congestion_r(cr_query,test_data)
+                  self.minor_planning(planner,test_data)
+                  self.save_data(test_data,"RA")
+                  avg_r_ra,avg_c_ra,avg_s_ra=self.minor_get_metrics(test_data)                  
+            
+            print(cr_query)
+            a_r.append(avg_r)
+            a_c.append(avg_c)
+            a_s.append(avg_s)
+
+            a_r.append(avg_r_pr)
+            a_c.append(avg_c_pr)
+            a_s.append(avg_s_pr)
+            
+            a_r.append(avg_r_ra)
+            a_c.append(avg_c_ra)
+            a_s.append(avg_s_ra)
+
+            #plot the learning trend for LPRA       
+            self.minor_plot_trend(samples,lpra_r,"Training Data Size","Average Reward on Test Data","reward.pdf")
+            self.minor_plot_trend(samples,lpra_c,"Training Data Size","Average Cost on Test Data","cost.pdf")
+            self.minor_plot_trend(samples,lpra_s,"Training Data Size","Success rate on Test Data","success_rate.pdf")
+            self.minor_plot_trend(samples,co_diffs,"Training Data Size","avergae prediction differences","co_trend.pdf")
+            self.minor_plot_trend(samples,cr_diffs,"Training Data Size","avergae prediction differences","cr_trend.pdf")
+
+            #apply only A on test data
+            self.minor_a(planner,test_data)
+            self.save_data(test_data,"A")
+            avg_r_a,avg_c_a,avg_s_a=self.minor_get_metrics(test_data)
+
+            a_r.append(avg_r_a)
+            a_c.append(avg_c_a)
+            a_s.append(avg_s_a)
+
+            print("average is",a_r,a_c,a_s)
+
+            baselines=["LPRA","PR","RA","A"]
+            print(cr_query)
+            
+            plt.figure()
+            #plt.subplots()
+            plt.bar(baselines,a_r)
+            plt.ylabel("Reward")
+            #plt.ylim()
+            plt.savefig("a_r.pdf")
+            plt.close()
+            
+            plt.figure()
+            #plt.subplots()
+            plt.bar(baselines,a_c)
+            plt.ylabel("Cost")
+            #plt.ylim()
+            plt.savefig("a_c.pdf")
+
+            plt.figure()
+            #plt.subplots()
+            plt.bar(baselines,a_s)
+            plt.ylabel("Successrate")
+            #plt.ylim()
+            plt.savefig("a_s.pdf")
+            plt.close()
+            
+
+            return a_r,a_c,a_s,lpra_r,lpra_c,lpra_s
+      
+      def minor_multi_run(self,test_data,step,batch_num):
+            LPRA_r=[]
+            LPRA_c=[]
+            LPRA_s=[]
+            PR_r=[]
+            PR_c=[]
+            PR_s=[]
+            RA_r=[]
+            RA_c=[]
+            RA_s=[]
+            A_r=[]
+            A_c=[]
+            A_s=[]
+            trends_r=[]
+            trends_c=[]
+            trends_s=[]
+            #sim.minor_plot_sampling(100,8100,100)
+            for i in range(4):
+                  self.minor_del_reasoner_file()       
+                  a_r,a_c,a_s,l_trend_r,l_trend_c,l_trend_s=self.minor_run(test_data,step,batch_num)
+                  
+                  trends_r.append(l_trend_r)
+                  trends_c.append(l_trend_c)
+                  trends_s.append(l_trend_s)
+
+                  LPRA_r.append(a_r[0])
+                  LPRA_c.append(a_c[0])
+                  LPRA_s.append(a_s[0])
+                  PR_r.append(a_r[1])
+                  PR_c.append(a_c[1])
+                  PR_s.append(a_s[1])
+                  RA_r.append(a_r[2])
+                  RA_c.append(a_c[2])
+                  RA_s.append(a_s[2])
+                  A_r.append(a_r[3])
+                  A_c.append(a_c[3])
+                  A_s.append(a_s[3])
+            
+            print("trend r is",trends_r)
+            print("trend s is",trends_s)
+            
+            err_r=[[trends_r[x][y] for x in range(len(trends_r))] for y in range(batch_num-1)]
+            err_c=[[trends_c[x][y] for x in range(len(trends_c))] for y in range(batch_num-1)]
+            err_s=[[trends_s[x][y] for x in range(len(trends_s))] for y in range(batch_num-1)]
+            mean_trend_r=[sum(err_r[x])/len(err_r[x]) for x in range(batch_num-1)]
+            mean_trend_c=[sum(err_c[x])/len(err_c[x]) for x in range(batch_num-1)]
+            mean_trend_s=[sum(err_s[x])/len(err_s[x]) for x in range(batch_num-1)]
+            std_trend_r=[st.stdev(err_r[x]) for x in range(batch_num-1)]
+            std_trend_c=[st.stdev(err_c[x]) for x in range(batch_num-1)]
+            std_trend_s=[st.stdev(err_s[x]) for x in range(batch_num-1)]
+            
+            datasizes=[i*200 for i in range(1,batch_num)]
+            plt.figure()
+            #plt.subplots()
+            plt.errorbar(datasizes,mean_trend_r,yerr=std_trend_r,capsize=2)
+            plt.ylabel("Reward")
+            #plt.ylim(50,80)
+            plt.savefig("trend_r.pdf")
+            plt.close()
+
+            plt.figure()
+            #plt.subplots()
+            plt.errorbar(datasizes,mean_trend_c,yerr=std_trend_c,capsize=2)
+            plt.ylabel("Cost")
+            #plt.ylim(50,80)
+            plt.savefig("trend_c.pdf")
+            plt.close()
+
+            
+            plt.figure()
+            #plt.subplots()
+            plt.errorbar(datasizes,mean_trend_s,yerr=std_trend_s,capsize=2)
+            plt.ylabel("Success rate")
+            #plt.ylim(50,80)
+            plt.savefig("trend_s.pdf")
+            plt.close()
+
+            
+            mean_LPRA_r=sum(LPRA_r)/len(LPRA_r)
+            mean_LPRA_c=sum(LPRA_c)/len(LPRA_c)
+            mean_LPRA_s=sum(LPRA_s)/len(LPRA_s)
+            mean_PR_r=sum(PR_r)/len(PR_r)
+            mean_PR_c=sum(PR_c)/len(PR_c)
+            mean_PR_s=sum(PR_s)/len(PR_s)
+            mean_RA_r=sum(RA_r)/len(RA_r)
+            mean_RA_c=sum(RA_c)/len(RA_c)
+            mean_RA_s=sum(RA_s)/len(RA_s)
+            mean_A_r=sum(A_r)/len(A_r)
+            mean_A_c=sum(A_c)/len(A_c)
+            mean_A_s=sum(A_s)/len(A_s)
+
+            std_LPRA_r=st.stdev(LPRA_r)
+            std_LPRA_c=st.stdev(LPRA_c)
+            std_LPRA_s=st.stdev(LPRA_s)
+            std_PR_r=st.stdev(PR_r)
+            std_PR_c=st.stdev(PR_c)
+            std_PR_s=st.stdev(PR_s)
+            std_RA_r=st.stdev(RA_r)
+            std_RA_c=st.stdev(RA_c)
+            std_RA_s=st.stdev(RA_s)
+            std_A_r=st.stdev(A_r)
+            std_A_c=st.stdev(A_c)
+            std_A_s=st.stdev(A_s)
+      
+            error_r=[std_LPRA_r,std_PR_r,std_RA_r,std_A_r]
+            error_c=[std_LPRA_c,std_PR_c,std_RA_c,std_A_c]
+            error_s=[std_LPRA_s,std_PR_s,std_RA_s,std_A_s]
+      
+            reward=[mean_LPRA_r,mean_PR_r,mean_RA_r,mean_A_r]
+            cost=[mean_LPRA_c,mean_PR_c,mean_RA_c,mean_A_c]
+            success=[mean_LPRA_s,mean_PR_s,mean_RA_s,mean_A_s]
+            baselines=["LPRA","PR","RA","A"]
+
+            print("LPRA:",LPRA_r,LPRA_c,LPRA_s)
+            print("PR is:",PR_r,PR_c,PR_s)
+            print("RA is:",RA_r,RA_c,RA_s)
+            print("A is:",A_r,A_c,A_s)
+            print(reward,cost,success)
+
+            plt.figure()
+            #plt.subplots()
+            plt.bar(baselines,reward,yerr=error_r,capsize=2)
+            plt.ylabel("Reward")
+            #plt.ylim(50,80)
+            plt.savefig("a_r.pdf")
+            plt.close()
+
+            plt.figure()
+            #plt.subplots()
+            plt.bar(baselines,cost,yerr=error_c,capsize=2)
+            plt.ylabel("Cost")
+            #plt.ylim(5,)
+            plt.savefig("a_c.pdf")
+
+            plt.figure()
+            #plt.subplots()
+            plt.bar(baselines,success,yerr=error_s,capsize=2)
+            plt.ylabel("Successrate")
+            #plt.ylim(0.7,1)
+            plt.savefig("a_s.pdf")
+            plt.close()
+
 
 def main():
       parser = argparse.ArgumentParser(description='Training Settings')
       #parser.add_argument()
-      
+
+     
       sim=AbstractSimulator()
+      #sim.minor_run(50,6)
+      #print(Reasoner.read_result_cr("query_cr.result"))
+      test_data=sim.minor_create_testdata(3000,conf1,conf2)
+      sim.minor_multi_run(test_data,200,6)
+      
+      """
+      batch_num=5
+      trends_r=[[1,2,3,4,5],[2,3,4,5,6],[1,2,3,4,5],[2,3,4,5,6],[2,3,4,5,6]]
+      trends_c=[[1,2,3,4,5],[2,3,4,5,6],[1,2,3,4,5],[2,3,4,5,6],[2,3,4,5,6]]
+      trends_s=[[1,2,3,4,5],[2,3,4,5,6],[1,2,3,4,5],[2,3,4,5,6],[2,3,4,5,6]]
+
+      err_r=[[trends_r[x][y] for x in range(5)] for y in range(batch_num)]
+      err_c=[[trends_c[x][y] for x in range(5)] for y in range(batch_num)]
+      err_s=[[trends_s[x][y] for x in range(5)] for y in range(batch_num)]
+      print(err_r)
+      mean_trend_r=[sum(err_r[x])/len(err_r[x]) for x in range(batch_num)]
+      mean_trend_c=[sum(err_c[x])/len(err_c[x]) for x in range(batch_num)]
+      mean_trend_s=[sum(err_s[x])/len(err_s[x]) for x in range(batch_num)]
+      std_trend_r=[st.stdev(err_r[x]) for x in range(batch_num)]
+      std_trend_c=[st.stdev(err_c[x]) for x in range(batch_num)]
+      std_trend_s=[st.stdev(err_s[x]) for x in range(batch_num)]
+            
+      datasizes=[i*200 for i in range(1,batch_num+1)]
+      plt.figure()
+      #plt.subplots()
+      plt.errorbar(datasizes,mean_trend_r,yerr=std_trend_r,capsize=2)
+      plt.ylabel("Reward")
+      #plt.ylim(50,80)
+      plt.savefig("trend_r.pdf")
+      plt.close()
+      """
+      
+
+      
+      """
+      conf1=[0.9,0.1]
+      conf2=[0.1,0.9]
+      test_data=sim.minor_create_testdata(3000,conf1,conf2)
+      planner=Planner()
+      sim.minor_a_test(planner,test_data)
+      """
+ 
+      
+      #sim.minor_run(100,2)
+      
+
+      """
+      LPRA_r=[]
+      LPRA_c=[]
+      LPRA_s=[]
+      PR_r=[]
+      PR_c=[]
+      PR_s=[]
+      RA_r=[]
+      RA_c=[]
+      RA_s=[]
+      A_r=[]
+      A_c=[]
+      A_s=[]
       #sim.minor_plot_sampling(100,8100,100)
+      for i in range(5):
+            if os.path.exists("reasoner/test.db"):
+                  os.remove("reasoner/test.db")
+            if os.path.exists("reasoner/train.db"):
+                  os.remove("reasoner/train.db")
+            if os.path.exists("reasoner/train_r.db"):
+                  os.remove("reasoner/train_r.db")
+            if os.path.exists("reasoner/trained.mln"):
+                  os.remove("reasoner/trained.mln")
+            if os.path.exists("reasoner/query.db"):
+                  os.remove("reasoner/query.db")
+            if os.path.exists("reasoner/query_r.db"):
+                  os.remove("reasoner/query_r.db")
+            if os.path.exists("reasoner/query.result"):
+                  os.remove("reasoner/query.result")
+            if os.path.exists("reasoner/query_r.result"):
+                  os.remove("reasoner/query_r.result")    
+            
+            a_r,a_c,a_s=sim.minor_run(100,5)
+            LPRA_r.append(a_r[0])
+            LPRA_c.append(a_c[0])
+            LPRA_s.append(a_s[0])
+            PR_r.append(a_r[1])
+            PR_c.append(a_c[1])
+            PR_s.append(a_s[1])
+            RA_r.append(a_r[2])
+            RA_c.append(a_c[2])
+            RA_s.append(a_s[2])
+            A_r.append(a_r[3])
+            A_c.append(a_c[3])
+            A_s.append(a_s[3])
+      
+      mean_LPRA_r=sum(LPRA_r)/len(LPRA_r)
+      mean_LPRA_c=sum(LPRA_c)/len(LPRA_c)
+      mean_LPRA_s=sum(LPRA_s)/len(LPRA_s)
+      mean_PR_r=sum(PR_r)/len(PR_r)
+      mean_PR_c=sum(PR_c)/len(PR_c)
+      mean_PR_s=sum(PR_s)/len(PR_s)
+      mean_RA_r=sum(RA_r)/len(RA_r)
+      mean_RA_c=sum(RA_c)/len(RA_c)
+      mean_RA_s=sum(RA_s)/len(RA_s)
+      mean_A_r=sum(A_r)/len(A_r)
+      mean_A_c=sum(A_c)/len(A_c)
+      mean_A_s=sum(A_s)/len(A_s)
+
+      std_LPRA_r=st.stdev(LPRA_r)
+      std_LPRA_c=st.stdev(LPRA_c)
+      std_LPRA_s=st.stdev(LPRA_s)
+      std_PR_r=st.stdev(PR_r)
+      std_PR_c=st.stdev(PR_c)
+      std_PR_s=st.stdev(PR_s)
+      std_RA_r=st.stdev(RA_r)
+      std_RA_c=st.stdev(RA_c)
+      std_RA_s=st.stdev(RA_s)
+      std_A_r=st.stdev(A_r)
+      std_A_c=st.stdev(A_c)
+      std_A_s=st.stdev(A_s)
+      
+      error_r=[std_LPRA_r,std_PR_r,std_RA_r,std_A_r]
+      error_c=[std_LPRA_c,std_PR_c,std_RA_c,std_A_c]
+      error_s=[std_LPRA_s,std_PR_s,std_RA_s,std_A_s]
+      
+      reward=[mean_LPRA_r,mean_PR_r,mean_RA_r,mean_A_r]
+      cost=[mean_LPRA_c,mean_PR_c,mean_RA_c,mean_A_c]
+      success=[mean_LPRA_s,mean_PR_s,mean_RA_s,mean_A_s]
+      baselines=["LPRA","PR","RA","A"]
+
+      print("LPRA:",LPRA_r,LPRA_c,LPRA_s)
+      print("PR is:",PR_r,PR_c,PR_s)
+      print("RA is:",RA_r,RA_c,RA_s)
+      print("A is:",A_r,A_c,A_s)
+      print(reward,cost,success)
+
+      plt.figure()
+      #plt.subplots()
+      plt.bar(baselines,reward,yerr=error_r,capsize=2)
+      plt.ylabel("Reward")
+      plt.ylim(60,90)
+      plt.savefig("a_r.pdf")
+      plt.close()
+
+      plt.figure()
+      #plt.subplots()
+      plt.bar(baselines,cost,yerr=error_c,capsize=2)
+      plt.ylabel("Cost")
+      plt.ylim(5,20)
+      plt.savefig("a_c.pdf")
+
+      plt.figure()
+      #plt.subplots()
+      plt.bar(baselines,success,yerr=error_s,capsize=2)
+      plt.ylabel("Successrate")
+      plt.ylim(0.7,1)
+      plt.savefig("a_s.pdf")
+      plt.close()
+      """
+      
+      
+
+
+      """
       index=0
       results=[]
       samples=[]
-      instance={"weather":"rainy","time_period":"busy","perception":"crowded","cr":"crowded","co":None}
+      instance1={"weather":"rainy","time_period":"busy","perception":"crowded","cr":"crowded","co":None}
+      instance2={"weather":"rainy","time_period":"normal","perception":"empty","cr":"empty","co":None}
+      instance3={"weather":"sunny","time_period":"normal","perception":"empty","cr":"empty","co":None}
+      instance4={"weather":"sunny","time_period":"busy","perception":"crowded","cr":"crowded","co":None}
       f=open("reasoner/trial.db","w")
-      Reasoner.minor_output_evd(f,instance,"1")
+      Reasoner.minor_output_evd(f,instance1,"1")
+      Reasoner.minor_output_evd(f,instance2,"2")
+      Reasoner.minor_output_evd(f,instance3,"3")
+      Reasoner.minor_output_evd(f,instance4,"4")
       f.close()
       step=200
       data_list=[]
       frequency_list=[]
-      for i in range(1,50):
+      avg_list=[]
+      reasoning_list=[]
+      f_expected=[0.1,0.7,0.9,0.3]
+      for i in range(1,20):
             training_data=sim.minor_generate_data(step)
             data_list=data_list+training_data
-            fr=sim.minor_check_co(data_list)
+            fr,avg=sim.minor_check_co(data_list)
             print("Length is",len(data_list))
             frequency_list.append(fr)
+            avg_list.append(avg)
             f=open("reasoner/train.db","a")
             for ins in training_data:
                   Reasoner.minor_output_data(f,ins,str(index))
@@ -1216,12 +1547,20 @@ def main():
             Reasoner.learn_weights(input_file="autocar.mln",output_file="trained.mln",train_data="train.db")
             Reasoner.infer(result_file="test.result",evidence_file="trial.db")
             p_co_list=Reasoner.read_result("test.result")
+            list_of_floats = [round(float(item),4) for item in p_co_list]
+
+            result=list(np.absolute(np.array(list_of_floats)-np.array(f_expected)))           
+            avg=sum(result)/len(result)
+            reasoning_list.append(avg)
+
             results.append((round(float(p_co_list[0]),4)))
             samples.append(i*step)
             print(results,frequency_list,samples)
       plt.figure()
       plt.plot(samples,results,'.-b')
       plt.plot(samples,frequency_list,'.-r')
+      plt.plot(samples,avg_list,'.-g')
+      plt.plot(samples,reasoning_list,'.-y')
       plt.xlabel("Number of Samples")
       plt.ylabel("probability")
 
@@ -1230,6 +1569,7 @@ def main():
 
 
       plt.close()
+      """
 
 
 
