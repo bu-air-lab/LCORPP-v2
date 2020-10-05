@@ -5,10 +5,13 @@ Created on Mon Aug  3 15:02:17 2020
 @author: cckklt
 """
 import os
+import shutil
 import argparse
 import json
 import random
+import math
 import numpy as np
+from scipy import stats
 import statistics as st
 from pathlib import Path
 import matplotlib.pyplot as plt
@@ -17,9 +20,42 @@ from utils.parser import Policy,Solver
 from utils.pomdp_parser import Model
 from utils.pomdp_solver import generate_policy
 np.set_printoptions(precision=4)     # for better belief printing 
+import datetime
+
 
 random.seed(5)
 np.random.seed(5)
+
+class Classifier:
+      def select_training_images(ins_list,cr_data_path="classifier/lidar_200/train_data/class_B",em_data_path='classifier/lidar_200/train_data/class_A',cr_destination='classifier/lidar_10/train_data/class_B',em_destination='classifier/lidar_10/train_data/class_A'):
+            num_cr=0
+            num_em=0
+            for ins in ins_list:
+                  if ins['cr']=="crowded":
+                        num_cr+=1
+                  elif ins['cr']=="empty":
+                        num_em+=1
+                  
+            cr_image_list=os.listdir(cr_data_path)
+            #print(cr_image_list)
+            selected_cr_image_list=random.choices(cr_image_list,k=num_cr)
+            
+            em_image_list=os.listdir(em_data_path)
+            #print(em_image_list)
+            selected_em_image_list=random.choices(em_image_list,k=num_em)
+            
+            for f in selected_cr_image_list:
+                  shutil.copy(cr_data_path+"/"+f,cr_destination)
+            for f in selected_em_image_list:
+                  shutil.copy(em_data_path+"/"+f,em_destination)
+
+      def delete_training_images():
+            shutil.rmtree("classifier/lidar_10/train_data/class_A")
+            shutil.rmtree("classifier/lidar_10/train_data/class_B")
+            os.makedirs("classifier/lidar_10/train_data/class_A")
+            os.makedirs("classifier/lidar_10/train_data/class_B")
+
+
 
 class Reasoner:
       
@@ -38,6 +74,19 @@ class Reasoner:
             elif instance['perception']=="empty":
                   f.write("!Perception(Crowded,"+index+")\n")
                   f.write("Perception(Empty,"+index+")\n")          
+            f.write("\n")
+      
+      @staticmethod
+      def minor_output_evd_r_cr(f,instance,index):
+            if instance['time_period']=="busy":
+                  f.write("Time(Busy,"+index+")\n")
+                  f.write("!Time(Normal,"+index+")\n")
+            elif instance['time_period']=="normal":
+                  f.write("Time(Normal,"+index+")\n")
+                  f.write("!Time(Busy,"+index+")\n")           
+            
+            f.write("!Perception(Crowded,"+index+")\n")
+            f.write("Perception(Empty,"+index+")\n")          
             f.write("\n")
       
       @staticmethod
@@ -277,7 +326,7 @@ class Reasoner:
             assert Path(infer_path).is_file(), 'infer path does not exist'
             #subprocess.check_output([infer_path,"-i",mln_file,"-r",result_file,"-e",evidence_file, "-q", query])
             #why this does not work, but in parser pomdp it worked
-            subprocess.run(["./infer","-i",mln_file,"-r",result_file,"-e",evidence_file, "-q", query],cwd='reasoner')
+            subprocess.run(["./infer","-i",mln_file,"-r",result_file,"-e",evidence_file, "-q", query,"-maxSteps", "200"],cwd='reasoner')
 
       @staticmethod
       def infer_cr(mln_file="trained.mln",result_file="query_cr.result",evidence_file="query.db",query="Road"):    
@@ -285,7 +334,7 @@ class Reasoner:
             assert Path(infer_path).is_file(), 'infer path does not exist'
             #subprocess.check_output([infer_path,"-i",mln_file,"-r",result_file,"-e",evidence_file, "-q", query])
             #why this does not work, but in parser pomdp it worked
-            subprocess.run(["./infer","-i",mln_file,"-r",result_file,"-e",evidence_file, "-q", query],cwd='reasoner')     
+            subprocess.run(["./infer","-i",mln_file,"-r",result_file,"-e",evidence_file, "-q", query,"-maxSteps", "200"],cwd='reasoner')     
 
             
       @staticmethod    
@@ -350,6 +399,23 @@ class Planner:
             #belief=np.
             #belief=np.array([0.5*p_co,0.5*(1-p_co),0.5*p_co,0.5*(1-p_co),0.0])
             return belief
+      
+      def initialize_state_p_distribution(self,p_co,p_cr,p_room):
+            p_co=round(float(p_co),4)
+            p_cr=round(float(p_cr),4)
+            p_room=round(float(p_room),4)
+            b1=p_room*p_co*p_cr
+            b2=p_room*p_co*(1-p_cr)
+            b3=p_room*(1-p_co)*p_cr
+            b4=p_room*(1-p_co)*(1-p_cr)
+            b5=(1-p_room)*p_co*p_cr
+            b6=(1-p_room)*p_co*(1-p_cr)
+            b7=(1-p_room)*(1-p_co)*p_cr
+            b8=(1-p_room)*(1-p_co)*(1-p_cr)
+            belief=np.array([b1,b2,b3,b4,b5,b6,b7,b8,0.0])          
+            #belief=np.
+            #belief=np.array([0.5*p_co,0.5*(1-p_co),0.5*p_co,0.5*(1-p_co),0.0])
+            return belief
       #['R_W', 'R_W_not', 'R_not_W', 'R_not_W_not', 'term']
       
       def update_belief(self,a_idx,o_idx,belief):
@@ -379,7 +445,12 @@ class Planner:
             elif instance['cr']=='crowded':
                   gt_cr=0.0
             
-            gt_belief=self.initialize_belief(gt_co,gt_cr)
+            if instance['room_left']=="room":
+                  gt_room=1.0
+            elif instance['room_left']=='no room':
+                  gt_room=0.0
+            
+            gt_belief=self.initialize_state_p_distribution(gt_co,gt_cr,gt_room)
             print("\nGt distribution is",gt_belief)
             print("The initial belief is:", belief)
             instance["belief"]=belief.tolist()
@@ -441,7 +512,12 @@ class Planner:
             elif instance['cr']=='crowded':
                   gt_cr=0.0
             
-            gt_belief=self.initialize_belief(gt_co,gt_cr)
+            if instance['room_left']=="room":
+                  gt_room=1.0
+            elif instance['room_left']=='no room':
+                  gt_room=0.0
+            
+            gt_belief=self.initialize_state_p_distribution(gt_co,gt_cr,gt_room)
             print("The initial belief is:", belief)
             instance["belief"]=belief.tolist()
             instance['pomdp']=[]
@@ -456,24 +532,32 @@ class Planner:
             a_idx=0
             print("state is: ",self.model.states[s_idx])
             print ('action is: ',self.model.actions[a_idx])
+            next_state = np.random.choice(self.model.states, p=self.model.trans_mat[a_idx,s_idx,:])
+            obs = self.observe(a_idx,next_state)
+            
 
  
             #R1     
             r=r+self.model.reward_mat[a_idx,s_idx]
             instance['pomdp'].append("Action:"+self.model.actions[a_idx])
+            obs_idx = self.model.observations.index(obs)
+            belief=self.update_belief(a_idx,obs_idx,belief)
 
-            #S1,A1 is "move left"
-            next_state = np.random.choice(self.model.states, p=self.model.trans_mat[a_idx,s_idx,:]) 
-            s_idx = self.model.states.index(next_state)
-            a_idx=1
-            print ('action is: ',self.model.actions[a_idx])
-
-            #R2
-            r=r+self.model.reward_mat[a_idx,s_idx]
-            instance['pomdp'].append("Action:"+self.model.actions[a_idx])
-            
+            while belief[0]<0.7 and belief[1]<0.7:         
+                  #S1,A1 is "move left"
+                  s_idx = self.model.states.index(next_state)
+                  a_idx=random.choice([0,1])
+                  print ('action is: ',self.model.actions[a_idx])
+                  #R2
+                  r=r+self.model.reward_mat[a_idx,s_idx]
+                  instance['pomdp'].append("Action:"+self.model.actions[a_idx])
+                  next_state = np.random.choice(self.model.states, p=self.model.trans_mat[a_idx,s_idx,:])
+                  obs = self.observe(a_idx,next_state)
+                  obs_idx = self.model.observations.index(obs)
+                  belief=self.update_belief(a_idx,obs_idx,belief)            
             #S2,A2 is "merge left"
-            next_state = np.random.choice(self.model.states, p=self.model.trans_mat[a_idx,s_idx,:])
+            #next_state = np.random.choice(self.model.states, p=self.model.trans_mat[a_idx,s_idx,:])
+            
             s_idx = self.model.states.index(next_state)
             a_idx=2
             print ('action is: ',self.model.actions[a_idx])
@@ -484,10 +568,9 @@ class Planner:
 
             #S3
             #state=np.random.choice(self.model.states, p=self.model.trans_mat[a_idx,s_idx,:])
-
             instance['cost']=(r-self.model.reward_mat[a_idx,s_idx])*(-1)
             instance['reward']=r                    
-            if(next_state=="R_W_C" or state=="R_W_C_not"):
+            if(next_state=="R_W_C" or next_state=="R_W_C_not"):
             #print("Successful")
                   return "Successful"
             else:
@@ -502,15 +585,16 @@ class AbstractSimulator:
             self.perception_list=["crowded","empty"]
             self.crowded_list=["crowded","empty"]
             self.willingness_list=["cooperative","not cooperative"]
+            self.room_left_list=["room","no room"]
       
       def sample (self, alist, distribution):
             return np.random.choice(alist, p=distribution)
       
       def minor_sample_cr(self,instance):
             if instance['time_period']=="busy":
-                        cr=self.sample(self.crowded_list,[0.8,0.2])          
+                        cr=self.sample(self.crowded_list,[0.7,0.3])          
             elif instance["time_period"]=="normal":
-                        cr=self.sample(self.crowded_list,[0.2,0.8]) 
+                        cr=self.sample(self.crowded_list,[0.3,0.7]) 
             return cr
       
       def minor_perceive(self,instance,conf1,conf2):
@@ -543,6 +627,7 @@ class AbstractSimulator:
             instance['perception']=self.minor_perceive(instance,conf1,conf2)
             instance['cr_reasoning']=None
             instance['co_reasoning']=None
+            instance['room_left']=random.choice(self.room_left_list)
             return instance
       
       def minor_generate_data(self,num_trials,conf1,conf2):
@@ -551,6 +636,13 @@ class AbstractSimulator:
                   instance=self.minor_create_instance(conf1,conf2)
                   instance_list.append(instance)
             return instance_list
+      
+      def minor_initialize_planning(self,ins):
+            ins['pomdp']=None
+            ins['belief']=None
+            ins['cost']=None
+            ins['reward']=None
+            ins['result']=None
       
       def minor_check_co(self,instance_list):
             f=[]
@@ -781,13 +873,9 @@ class AbstractSimulator:
             f.close()
 
             f=open("reasoner/query_r_cr.db","w")
-            Reasoner.minor_output_evd_cr(f,instance1,"1")
+            Reasoner.minor_output_evd_r_cr(f,instance1,"1")
 
-            Reasoner.minor_output_evd_cr(f,instance2,"2")
-
-            Reasoner.minor_output_evd_cr(f,instance5,"3")
-
-            Reasoner.minor_output_evd_cr(f,instance6,"4")
+            Reasoner.minor_output_evd_r_cr(f,instance2,"5")
             f.close()
       
       def minor_query_reasoner(self,q,instance_list):
@@ -848,9 +936,9 @@ class AbstractSimulator:
       def minor_query_congestion_r(self,q,instance_list):          
             for ins in instance_list:
                   if ins['time_period']=="busy":
-                              ins["cr_reasoning"]=q[1]                             
+                              ins["cr_reasoning"]=q[0]                             
                   elif ins['time_period']=="normal":
-                              ins["cr_reasoning"]=q[3]
+                              ins["cr_reasoning"]=q[1]
       
       def minor_get_metrics(self,ins_list):
             reward=0
@@ -887,10 +975,12 @@ class AbstractSimulator:
       
       def minor_planning(self,planner,instance_list):
             for ins in instance_list:
+                  self.minor_initialize_planning(ins)
                   ins['result']=planner.run(ins)
       
       def minor_planning_pr(self,planner,instance_list):
             for ins in instance_list:
+                  self.minor_initialize_planning(ins)
                   ins['result']=planner.run_pr(ins) 
       
       def minor_plot_trend(self,xlist,ylist,xlabel,ylabel,name):
@@ -914,11 +1004,12 @@ class AbstractSimulator:
             for ins in instance_list:
                   i+=1
                   print("\n\nWith uniform distribution reasoning")
-                  ins["pomdp"]=[]
+                  self.minor_initialize_planning(ins)
                   ins["co_reasoning"]=0.5
                   ins["cr_reasoning"]=0.5
                   print("Instance:",i,ins)
                   ins["result"]=planner.run(ins)
+                  print("Instance:",i,ins['result'],ins['cost'],ins['reward'])
                   
       
       def minor_a_gt(self,planner,instance_list):
@@ -926,19 +1017,21 @@ class AbstractSimulator:
             for ins in instance_list:
                   i+=1
                   print("\n\nWith accurate logical reasoning")
-                  ins["pomdp"]=[]
+                  self.minor_initialize_planning(ins)
                   if ins['co']=="cooperative":
-                        ins["co_reasoning"]=1.0
+                        ins["co_reasoning"]=0.95
                   elif ins['co']=='not cooperative':
-                        ins["co_reasoning"]=0.0                
+                        ins["co_reasoning"]=0.05                
                   if ins['cr']=="empty":
-                        ins["cr_reasoning"]=1.0
+                        ins["cr_reasoning"]=0.95
                   elif ins['cr']=='crowded':
-                        ins["cr_reasoning"]=0.0                
+                        ins["cr_reasoning"]=0.05               
                   print("Instance:",i,ins)
                   ins["result"]=planner.run(ins)
+                  print("Instance:",i,ins['result'],ins['cost'],ins['reward'])
       
-      def minor_a_test(self,planner,instance_list):
+      def minor_a_test_err(self,instance_list):
+            planner=Planner()
             a_r=[]
             a_c=[]
             a_s=[]
@@ -1007,6 +1100,57 @@ class AbstractSimulator:
             plt.ylim(0.8,1)
             plt.savefig("pomdp_s.pdf")
             plt.close()
+      
+      def minor_a_test(self,instance_list):
+            planner=Planner()
+            a_r=[]
+            a_c=[]
+            a_s=[]
+            self.minor_a(planner,instance_list)
+            self.save_data(instance_list,"A")
+            avg_r_a,avg_c_a,avg_s_a=self.minor_get_metrics(instance_list)
+            a_r.append(avg_r_a)
+            a_c.append(avg_c_a)
+            a_s.append(avg_s_a)
+
+            self.minor_a_gt(planner,instance_list)
+            self.save_data(instance_list,"A_gt")
+            avg_r_a_gt,avg_c_a_gt,avg_s_a_gt=self.minor_get_metrics(instance_list)
+            a_r.append(avg_r_a_gt)
+            a_c.append(avg_c_a_gt)
+            a_s.append(avg_s_a_gt)
+
+            a_r_d=avg_r_a_gt-avg_r_a
+            a_c_d=avg_c_a-avg_c_a_gt
+            a_s_d=avg_s_a_gt-avg_s_a
+
+            print("The reward gap is:",a_r_d)
+            print("The cost gap is:",a_c_d)
+            print("The success gap is:",a_s_d)
+
+            baselines=["A","A_gt"]
+            plt.figure()
+            #plt.subplots()
+            plt.bar(baselines,a_r)
+            plt.ylabel("Reward")
+            #plt.ylim(50,)
+            plt.savefig("pomdp_r.pdf")
+            plt.close()
+            
+            plt.figure()
+            #plt.subplots()
+            plt.bar(baselines,a_c)
+            plt.ylabel("Cost")
+            #plt.ylim(5,)
+            plt.savefig("pomdp_c.pdf")
+
+            plt.figure()
+            #plt.subplots()
+            plt.bar(baselines,a_s)
+            plt.ylabel("Successrate")
+            #plt.ylim(0.8,1)
+            plt.savefig("pomdp_s.pdf")
+            plt.close()
 
 
       
@@ -1041,7 +1185,8 @@ class AbstractSimulator:
                   os.remove("reasoner/query_r_cr.result") 
 
 
-      def minor_run(self,test_data,step,batch_num):
+      #def minor_run(self,test_data,step,batch_num,steps):
+      def minor_run(self,test_data,steps,conf):
             self.minor_del_reasoner_file()
             self.minor_generate_query_evidence()
             conf1=[0.9,0.1]
@@ -1064,25 +1209,38 @@ class AbstractSimulator:
             a_r=[]
             a_c=[]
             a_s=[]
+            
+            p_learn_r=[]
+            p_learn_s=[]
+
+            r_learn_r=[]
+            r_learn_s=[]
+
             samples=[]
             cr_diffs=[]
             co_diffs=[]
-            for i in range(1,batch_num):
-                  samples.append(i)
+            conf_index=0
+            #for i in range(1,batch_num):
+            for step in steps:
+                  #samples.append(step+10)
 
                   #generate training data
                   #training_data=self.minor_generate_data(step,conf1,conf2)
                   training_data=random.choices(test_data,k=step)
                   data_list=data_list+training_data
                   print("Length is",len(data_list))
+                  samples.append(math.log(len(data_list)))
+                  
                   
                   #generate training evidences for LPRA
-                  f=open("reasoner/train.db","a")
-                  for ins in training_data:
+                  f=open("reasoner/train.db","w")
+                  for ins in data_list:
+                        #perception
+                        ins['perception']=self.minor_perceive(ins,conf[conf_index][0],conf[conf_index][1])
                         Reasoner.minor_output_data(f,ins,str(index))
                         index+=1
                   f.close()
-
+                  conf_index+=1
                   #generate training evidence for RA
                   f=open("reasoner/train_r.db","a")
                   for ins in training_data:
@@ -1096,9 +1254,9 @@ class AbstractSimulator:
                   Reasoner.infer(result_file="query.result",evidence_file="query.db")
 
                   #learn the weights from training data for RA
-                  #Reasoner.learn_weights(input_file="autocar_r.mln",output_file="trained_r.mln",train_data="train_r.db")
-                  Reasoner.infer_cr(result_file="query_r_cr.result",evidence_file="query_r_cr.db")
-                  Reasoner.infer(result_file="query_r.result",evidence_file="query_r.db")
+                  Reasoner.learn_weights(input_file="autocar_r.mln",output_file="trained_r.mln",train_data="train_r.db")
+                  Reasoner.infer_cr(result_file="query_r_cr.result",evidence_file="query_r_cr.db",mln_file="trained_r.mln")
+                  Reasoner.infer(result_file="query_r.result",evidence_file="query_r.db",mln_file="trained_r.mln")
                   
                   #get the query results for LPRA
                   co_query=Reasoner.read_result("query.result")
@@ -1141,8 +1299,8 @@ class AbstractSimulator:
                   self.minor_query_congestion_r(cr_query,test_data)
                   self.minor_planning(planner,test_data)
                   self.save_data(test_data,"RA")
-                  avg_r_ra,avg_c_ra,avg_s_ra=self.minor_get_metrics(test_data)                  
-            
+                  avg_r_ra,avg_c_ra,avg_s_ra=self.minor_get_metrics(test_data)                     
+
             print(cr_query)
             a_r.append(avg_r)
             a_c.append(avg_c)
@@ -1156,10 +1314,11 @@ class AbstractSimulator:
             a_c.append(avg_c_ra)
             a_s.append(avg_s_ra)
 
-            #plot the learning trend for LPRA       
-            self.minor_plot_trend(samples,lpra_r,"Training Data Size","Average Reward on Test Data","reward.pdf")
-            self.minor_plot_trend(samples,lpra_c,"Training Data Size","Average Cost on Test Data","cost.pdf")
-            self.minor_plot_trend(samples,lpra_s,"Training Data Size","Success rate on Test Data","success_rate.pdf")
+            #plot the learning trend for LPRA   
+            print("Samples is",samples)    
+            self.minor_plot_trend(samples,lpra_r,"Training Data Size","Average Reward on Test Data",str(datetime.datetime.now())+"reward.pdf")
+            self.minor_plot_trend(samples,lpra_c,"Training Data Size","Average Cost on Test Data",str(datetime.datetime.now())+"cost.pdf")
+            self.minor_plot_trend(samples,lpra_s,"Training Data Size","Success rate on Test Data",str(datetime.datetime.now())+"success_rate.pdf")
             self.minor_plot_trend(samples,co_diffs,"Training Data Size","avergae prediction differences","co_trend.pdf")
             self.minor_plot_trend(samples,cr_diffs,"Training Data Size","avergae prediction differences","cr_trend.pdf")
 
@@ -1174,7 +1333,7 @@ class AbstractSimulator:
 
             print("average is",a_r,a_c,a_s)
 
-            baselines=["LPRA","PR","RA","A"]
+            baselines=["LPRA","PRA-","RA","A"]
             print(cr_query)
             
             plt.figure()
@@ -1201,9 +1360,10 @@ class AbstractSimulator:
             plt.close()
             
 
-            return a_r,a_c,a_s,lpra_r,lpra_c,lpra_s
+            return a_r,a_c,a_s,lpra_r,lpra_c,lpra_s,samples
       
-      def minor_multi_run(self,test_data,step,batch_num):
+      def minor_multi_run(self,test_data,steps,conf):
+      #def minor_multi_run(self,test_data,step,batch_num):
             LPRA_r=[]
             LPRA_c=[]
             LPRA_s=[]
@@ -1220,9 +1380,9 @@ class AbstractSimulator:
             trends_c=[]
             trends_s=[]
             #sim.minor_plot_sampling(100,8100,100)
-            for i in range(4):
+            for i in range(9):
                   self.minor_del_reasoner_file()       
-                  a_r,a_c,a_s,l_trend_r,l_trend_c,l_trend_s=self.minor_run(test_data,step,batch_num)
+                  a_r,a_c,a_s,l_trend_r,l_trend_c,l_trend_s,datasizes=self.minor_run(test_data,steps,conf)
                   
                   trends_r.append(l_trend_r)
                   trends_c.append(l_trend_c)
@@ -1244,6 +1404,7 @@ class AbstractSimulator:
             print("trend r is",trends_r)
             print("trend s is",trends_s)
             
+            batch_num=len(steps)+1
             err_r=[[trends_r[x][y] for x in range(len(trends_r))] for y in range(batch_num-1)]
             err_c=[[trends_c[x][y] for x in range(len(trends_c))] for y in range(batch_num-1)]
             err_s=[[trends_s[x][y] for x in range(len(trends_s))] for y in range(batch_num-1)]
@@ -1254,13 +1415,13 @@ class AbstractSimulator:
             std_trend_c=[st.stdev(err_c[x]) for x in range(batch_num-1)]
             std_trend_s=[st.stdev(err_s[x]) for x in range(batch_num-1)]
             
-            datasizes=[i*200 for i in range(1,batch_num)]
+            #datasizes=[10,20,40,80,160]
             plt.figure()
             #plt.subplots()
             plt.errorbar(datasizes,mean_trend_r,yerr=std_trend_r,capsize=2)
             plt.ylabel("Reward")
-            #plt.ylim(50,80)
-            plt.savefig("trend_r.pdf")
+            #plt.ylim(30,)
+            plt.savefig("LPRA_reward.pdf")
             plt.close()
 
             plt.figure()
@@ -1268,7 +1429,7 @@ class AbstractSimulator:
             plt.errorbar(datasizes,mean_trend_c,yerr=std_trend_c,capsize=2)
             plt.ylabel("Cost")
             #plt.ylim(50,80)
-            plt.savefig("trend_c.pdf")
+            plt.savefig("LPRA_cost.pdf")
             plt.close()
 
             
@@ -1276,8 +1437,8 @@ class AbstractSimulator:
             #plt.subplots()
             plt.errorbar(datasizes,mean_trend_s,yerr=std_trend_s,capsize=2)
             plt.ylabel("Success rate")
-            #plt.ylim(50,80)
-            plt.savefig("trend_s.pdf")
+            #plt.ylim(0,6,)
+            plt.savefig("LPRA_successrate.pdf")
             plt.close()
 
             
@@ -1314,35 +1475,35 @@ class AbstractSimulator:
             reward=[mean_LPRA_r,mean_PR_r,mean_RA_r,mean_A_r]
             cost=[mean_LPRA_c,mean_PR_c,mean_RA_c,mean_A_c]
             success=[mean_LPRA_s,mean_PR_s,mean_RA_s,mean_A_s]
-            baselines=["LPRA","PR","RA","A"]
-
+            baselines=["LPRA","LPRA-","LRA","A"]
+            
             print("LPRA:",LPRA_r,LPRA_c,LPRA_s)
             print("PR is:",PR_r,PR_c,PR_s)
             print("RA is:",RA_r,RA_c,RA_s)
             print("A is:",A_r,A_c,A_s)
             print(reward,cost,success)
-
+            print(stats.ttest_ind(LPRA_r,RA_r))
             plt.figure()
             #plt.subplots()
-            plt.bar(baselines,reward,yerr=error_r,capsize=2)
+            plt.bar(baselines,reward,yerr=error_r,capsize=2,width=0.6)
             plt.ylabel("Reward")
-            #plt.ylim(50,80)
-            plt.savefig("a_r.pdf")
+            plt.ylim(35,)
+            plt.savefig("reward_comparison.pdf")
             plt.close()
 
             plt.figure()
             #plt.subplots()
-            plt.bar(baselines,cost,yerr=error_c,capsize=2)
+            plt.bar(baselines,cost,yerr=error_c,capsize=2,width=0.6)
             plt.ylabel("Cost")
-            #plt.ylim(5,)
-            plt.savefig("a_c.pdf")
+            plt.ylim(5,)
+            plt.savefig("cost_comparison.pdf")
 
             plt.figure()
             #plt.subplots()
-            plt.bar(baselines,success,yerr=error_s,capsize=2)
+            plt.bar(baselines,success,yerr=error_s,capsize=2,width=0.6)
             plt.ylabel("Successrate")
-            #plt.ylim(0.7,1)
-            plt.savefig("a_s.pdf")
+            plt.ylim(0.8,)
+            plt.savefig("success_comparison.pdf")
             plt.close()
 
 
@@ -1350,12 +1511,19 @@ def main():
       parser = argparse.ArgumentParser(description='Training Settings')
       #parser.add_argument()
 
-     
+      conf1=[0.9,0.1]
+      conf2=[0.1,0.9]
       sim=AbstractSimulator()
-      #sim.minor_run(50,6)
-      #print(Reasoner.read_result_cr("query_cr.result"))
-      test_data=sim.minor_create_testdata(3000,conf1,conf2)
-      sim.minor_multi_run(test_data,200,6)
+      
+      steps=[10,10,30,50,100,200,200]
+      conf=[[[0.5,0.5],[0.5,0.5]],[[0.59,0.41],[0.41,0.59]],[[0.67,0.33],[0.33,0.67]],[[0.84,0.16],[0.16,0.84]],[[0.86,0.14],[0.14,0.86]],[[0.86,0.14],[0.14,0.86]],[[0.86,0.14],[0.14,0.86]]]
+      test_data=sim.minor_create_testdata(1200,conf1,conf2)
+      sim.minor_a_test(test_data)
+      #list_ins=sim.minor_create_testdata(10,conf1,conf2)
+      #sim.minor_multi_run(test_data,steps,conf)
+      #Classifier.select_training_images(list_ins)
+      #Classifier.delete_training_images()
+      #sim.minor_run(test_data,steps,conf)
       
       """
       batch_num=5
