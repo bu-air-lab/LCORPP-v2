@@ -1,0 +1,41 @@
+./pomdpsol program.pomdp --timeout 20 --output program.policy  
+
+left signal
+R_W_C: (1.0 R_W_C)
+R_W_C_not: (1.0 R_W_C_not)
+R_W_not_C: (0.8 R_W_C) (0.2 R_W_not_C)
+R_W_not_C_not: (R_W_C_not 0.6) (R_W_not_C_not 0.4)
+R_not_W_C: (R_not_W_C 1.0) 
+R_not_W_C_not: (R_not_W_C_not 1.0) 
+R_not_W_not_C: (R_not_W_C 0.8) (R_not_W_not_C 0.2)
+R_not_W_not_C_not: (R_not_W_C _not 0.6) (R_not_W_not_C_not 0.4)
+
+move left
+R_W_C: (1.0 R_W_C)
+R_W_C_not: (1.0 R_W_C_not)
+R_W_not_C: (0.8 R_W_not_C) (0.2 R_not_W_not_C)
+R_W_not_C_not: (R_W_not_C_not 0.6) (R_not_W_not_C_not 0.4)
+R_not_W_C: (R_W_C 1.0)
+R_not_W_C_not:  (R_W_C_not 0.8) (R_not_W_C_not 0.2) 
+R_not_W_not_C:(R_W_not_C 0.3) (R_not_W_not_C 0.7) 
+R_not_W_not_C_not:(R_W_not_C_not 0.1)(R_not_W_not_C_not 0.9)
+
+O:left_signal
+R_W_C: 0.9 0.1 0
+R_W_C_not: 0.8 0.2
+R_W_not_C: 0.2 0.8
+R_W_not_C_not: 0.1 0.9
+R_not_W_C: 0.9 0.1
+R_not_W_C_not: 0.8 0.2
+R_not_W_not_C: 0.3 0.7
+R_not_W_not_C_not: 0.2 0.8
+
+O:move_left
+R_W_C: 0.9 0.1 0
+R_W_C_not: 0.8 0.2
+R_W_not_C: 0.1 0.9
+R_W_not_C_not: 0.05 0.95
+R_not_W_C: 0.8 0.2
+R_not_W_C_not:0.3 0.7
+R_not_W_not_C: 0.2 0.8
+R_not_W_not_C_not: 0.1 0.9
