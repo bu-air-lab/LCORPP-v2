@@ -1,41 +1,38 @@
 ./pomdpsol program.pomdp --timeout 20 --output program.policy  
 
+discount: 0.99
+values: reward
+states: R_W_E R_W_E_not R_W_not_E R_W_not_E_not R_not_W_E R_not_W_E_not R_not_W_not_E R_not_W_not_E_not term 
+actions: left_signal move_left merge_left  
+observations:cooperative not_cooperative no_change
+
 left signal
-R_W_C: (1.0 R_W_C)
-R_W_C_not: (1.0 R_W_C_not)
-R_W_not_C: (0.8 R_W_C) (0.2 R_W_not_C)
-R_W_not_C_not: (R_W_C_not 0.6) (R_W_not_C_not 0.4)
-R_not_W_C: (R_not_W_C 1.0) 
-R_not_W_C_not: (R_not_W_C_not 1.0) 
-R_not_W_not_C: (R_not_W_C 0.8) (R_not_W_not_C 0.2)
-R_not_W_not_C_not: (R_not_W_C _not 0.6) (R_not_W_not_C_not 0.4)
+R_W_E: (1.0 R_W_E)
+R_W_E_not: (1.0 R_W_E_not)
+R_W_not_E: (0.9 R_W_E) (0.1 R_W_not_E)
+R_W_not_E_not: (R_W_E_not 0.7) (R_W_not_E_not 0.3)
+R_not_W_E: (R_not_W_E 1.0) 
+R_not_W_E_not: (R_not_W_E_not 1.0) 
+R_not_W_not_E: (R_not_W_E 0.9) (R_not_W_not_E 0.1)
+R_not_W_not_E_not: (R_not_W_E _not 0.7) (R_not_W_not_E_not 0.3)
 
 move left
-R_W_C: (1.0 R_W_C)
-R_W_C_not: (1.0 R_W_C_not)
-R_W_not_C: (0.8 R_W_not_C) (0.2 R_not_W_not_C)
-R_W_not_C_not: (R_W_not_C_not 0.6) (R_not_W_not_C_not 0.4)
-R_not_W_C: (R_W_C 1.0)
-R_not_W_C_not:  (R_W_C_not 0.8) (R_not_W_C_not 0.2) 
-R_not_W_not_C:(R_W_not_C 0.3) (R_not_W_not_C 0.7) 
-R_not_W_not_C_not:(R_W_not_C_not 0.1)(R_not_W_not_C_not 0.9)
+R_W_E: (1.0 R_W_E)
+R_W_E_not: (1.0 R_W_E_not)
+R_W_not_E: (0.9 R_W_not_E) (0.1 R_not_W_not_E)
+R_W_not_E_not: (R_W_not_E_not 1.0)
+R_not_W_E: (R_W_E 1.0)
+R_not_W_E_not: (R_W_E_not 0.7) (R_not_W_E_not 0.3) 
+R_not_W_not_E: (R_not_W_not_E 1.0) 
+R_not_W_not_E_not:(R_not_W_not_E_not 1.0)
 
 O:left_signal
-R_W_C: 0.9 0.1 0
-R_W_C_not: 0.8 0.2
-R_W_not_C: 0.2 0.8
-R_W_not_C_not: 0.1 0.9
-R_not_W_C: 0.9 0.1
-R_not_W_C_not: 0.8 0.2
-R_not_W_not_C: 0.3 0.7
-R_not_W_not_C_not: 0.2 0.8
+R_W_E: 0.9 0.1 0
+R_W_E_not: 0.9 0.1
+R_W_not_E: 0.1 0.9
+R_W_not_E_not: 0.1 0.9
+R_not_W_E: 0.9 0.1
+R_not_W_E_not: 0.9 0.1
+R_not_W_not_E: 0.1 0.9
+R_not_W_not_E_not: 0.1 0.9
 
-O:move_left
-R_W_C: 0.9 0.1 0
-R_W_C_not: 0.8 0.2
-R_W_not_C: 0.1 0.9
-R_W_not_C_not: 0.05 0.95
-R_not_W_C: 0.8 0.2
-R_not_W_C_not:0.3 0.7
-R_not_W_not_C: 0.2 0.8
-R_not_W_not_C_not: 0.1 0.9
