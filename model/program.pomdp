@@ -2,7 +2,7 @@ discount: 0.99
 values: reward
 states: R_W_E R_W_E_not R_W_not_E R_W_not_E_not R_not_W_E R_not_W_E_not R_not_W_not_E R_not_W_not_E_not term 
 actions: left_signal move_left merge_left  
-observations:cooperative not_cooperative no_change
+observations:positive negative not_applicable
 
 
 start: uniform
