@@ -56,6 +56,7 @@ class Net(nn.Module):
         x = self.fc2(x)
         output = F.log_softmax(x, dim=1)
         return output
+
 def image_loader(transform,image_name):
     image = Image.open(image_name)
     image = transform(image).float()

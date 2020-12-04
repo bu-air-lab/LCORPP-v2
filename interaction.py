@@ -76,6 +76,7 @@ class Planner:
         return np.random.choice(self.model.observations, p= self.model.obs_mat[a_idx,s_idx,:])
       
     def run(self,instance):
+        actions_taken={0:0,1:0,2:0}
         p_co=instance['co_reasoning']
         p_em=instance['cr_reasoning']
         belief=self.initialize_belief(p_co,p_em)
@@ -98,41 +99,43 @@ class Planner:
         gt_belief=self.initialize_state_p_distribution(gt_co,gt_em,gt_room)
         #print("\nGt distribution is",gt_belief)
         print("The initial belief is:", belief)
-        instance["belief"]=belief.tolist()
-        instance['pomdp']=[]
+        #instance["belief"]=belief.tolist()
+        #instance['pomdp']=[]
         state= np.random.choice(self.model.states[:-1],p=gt_belief[:-1])
         # make the initial state agree with the initial belief
         r=0
         term=False
         while not term:
             a_idx=self.policy.select_action(belief)
+            actions_taken[a_idx]+=1
             s_idx = self.model.states.index(state)
             r=r+self.model.reward_mat[a_idx,s_idx]
                   
             print ('\nUnderlying state: ', state)
-            instance['pomdp'].append("Underlying state:"+state)
+            #instance['pomdp'].append("Underlying state:"+state)
                   
             print ('action is: ',self.model.actions[a_idx])
-            instance['pomdp'].append("Action:"+self.model.actions[a_idx])
+            #instance['pomdp'].append("Action:"+self.model.actions[a_idx])
             #print("actions are",self.model.actions)
             next_state = np.random.choice(self.model.states, p=self.model.trans_mat[a_idx,s_idx,:])
                   
             obs = self.observe(a_idx,next_state)
             print("obs is:",obs)
-            instance['pomdp'].append("Obs:"+obs)
+            #instance['pomdp'].append("Obs:"+obs)
                   
             obs_idx = self.model.observations.index(obs)
             #print ('observation is: ',self.model.observations[obs_idx])
             #instance['pomdp'].append("Obs:"+self.model.observations[obs_idx])
                   
             belief=self.update_belief(a_idx,obs_idx,belief)
-            instance['pomdp'].append(belief.tolist())
+            #instance['pomdp'].append(belief.tolist())
             print(belief)
                   
             if belief[-1]>0:
                 term=True
                 instance['cost']=(r-self.model.reward_mat[a_idx,s_idx])*(-1)
-                instance['reward']=r                    
+                instance['reward']=r
+                instance['actions']=actions_taken             
                 if(state=="R_W_E" or state=="R_W_E_not"):
                     #print("Successful")
                     return "Successful"
@@ -164,8 +167,8 @@ class Planner:
             
         gt_belief=self.initialize_state_p_distribution(gt_co,gt_em,gt_room)
         print("The initial belief is:", belief)
-        instance["belief"]=belief.tolist()
-        instance['pomdp']=[]
+        #instance["belief"]=belief.tolist()
+        #instance['pomdp']=[]
         state= np.random.choice(self.model.states[:-1],p=gt_belief[:-1])
         # make the initial state agree with the initial belief
         r=0
@@ -182,40 +185,50 @@ class Planner:
             
         #R1     
         r=r+self.model.reward_mat[a_idx,s_idx]
-        instance['pomdp'].append("Action:"+self.model.actions[a_idx])
+        #instance['pomdp'].append("Action:"+self.model.actions[a_idx])
         obs_idx = self.model.observations.index(obs)
         belief=self.update_belief(a_idx,obs_idx,belief)
-
-        while belief[0]<0.7 and belief[1]<0.7:         
+        left_count=0
+        while (belief[0]+belief[1])<0.7 and left_count<2:         
             #S1,A1 is "move left"
+            left_count+=1
             s_idx = self.model.states.index(next_state)
             #a_idx=random.choice([0,1])
             a_idx=0
             print ('action is: ',self.model.actions[a_idx])
             #R2
             r=r+self.model.reward_mat[a_idx,s_idx]
-            instance['pomdp'].append("Action:"+self.model.actions[a_idx])
+            #instance['pomdp'].append("Action:"+self.model.actions[a_idx])
             next_state = np.random.choice(self.model.states, p=self.model.trans_mat[a_idx,s_idx,:])
             obs = self.observe(a_idx,next_state)
             obs_idx = self.model.observations.index(obs)
             belief=self.update_belief(a_idx,obs_idx,belief)            
             #S2,A2 is "merge left"
             #next_state = np.random.choice(self.model.states, p=self.model.trans_mat[a_idx,s_idx,:])
-            
-            s_idx = self.model.states.index(next_state)
-            a_idx=2
-            print ('action is: ',self.model.actions[a_idx])
-            
-            #R3
-            r=r+self.model.reward_mat[a_idx,s_idx]
-            instance['pomdp'].append("Action:"+self.model.actions[a_idx])
+        
+        s_idx = self.model.states.index(next_state)
+        a_idx=1
+        print ('action is: ',self.model.actions[a_idx])
+        r=r+self.model.reward_mat[a_idx,s_idx]
+        next_state = np.random.choice(self.model.states, p=self.model.trans_mat[a_idx,s_idx,:])
+        obs = self.observe(a_idx,next_state)
+        obs_idx = self.model.observations.index(obs)
+        belief=self.update_belief(a_idx,obs_idx,belief)
 
-            #S3
-            #state=np.random.choice(self.model.states, p=self.model.trans_mat[a_idx,s_idx,:])
-            instance['cost']=(r-self.model.reward_mat[a_idx,s_idx])*(-1)
-            instance['reward']=r                    
-            if(next_state=="R_W_E" or next_state=="R_W_E_not"):
-            #print("Successful")
-                return "Successful"
-            else:
-                return "Failed"
+        s_idx = self.model.states.index(next_state)
+        a_idx=2
+        print ('action is: ',self.model.actions[a_idx])
+            
+        #R3
+        r=r+self.model.reward_mat[a_idx,s_idx]
+        #instance['pomdp'].append("Action:"+self.model.actions[a_idx])
+
+        #S3
+        #state=np.random.choice(self.model.states, p=self.model.trans_mat[a_idx,s_idx,:])
+        instance['cost']=(r-self.model.reward_mat[a_idx,s_idx])*(-1)
+        instance['reward']=r                    
+        if(next_state=="R_W_E" or next_state=="R_W_E_not"):
+        #print("Successful")
+            return "Successful"
+        else:
+            return "Failed"
