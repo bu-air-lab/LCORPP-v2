@@ -443,9 +443,7 @@ class AbstractSimulator:
             for ins in instance_list:
                   self.minor_initialize_planning(ins)
                   ins['result']=planner.run_pr(ins) 
-      
-
-      
+          
       #  Planning only (A): purely POMDP-based, assuming that people are all cooperative at the beginning of the interaction.
       def minor_a(self,planner,instance_list):
             i=0
@@ -463,6 +461,15 @@ class AbstractSimulator:
             for ins in instance_list:
                   ins['cr_reasoning']=None
                   ins['co_reasoning']=None
+      
+      def dataszies_to_steps(self,datasizes):
+            steps=[]
+            for i in range(len(datasizes)):
+                  if i==0:
+                        steps.append(datasizes[i])
+                  else:
+                        steps.append(datasizes[i]-datasizes[i-1])
+            return steps
 
       def minor_plearn_step(self,planner,test_data,conf_em,conf_cr):
             f=open("conf_matrix.txt","a")
@@ -480,12 +487,10 @@ class AbstractSimulator:
                         #ins['cr_reasoning']=(conf_cr[1])
                         ins['cr_reasoning']=self.sample([0,1],conf_cr)
             self.minor_planning(planner,test_data)
-            #plearn_r,plearn_c,plearn_s=self.minor_get_metrics(test_data)
             plearn_metrics=self.minor_get_metrics(test_data)
             #print("conf!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",conf_em,conf_cr)
             return plearn_metrics
 
-      
       def minor_rlearn_step(self,planner,training_data,data_collected,test_data):
             #perceive the test data
             self.minor_initialize_reasoning(test_data)
@@ -523,11 +528,36 @@ class AbstractSimulator:
             self.minor_query_congestion(cr_query_rlearn,test_data)
             self.minor_query_reasoner(co_query_rlearn,test_data)
             self.minor_planning(planner,test_data)
-            #rlearn_r,rlearn_c,rlearn_s=self.minor_get_metrics(test_data)
-            #return rlearn_r,rlearn_s,index_rlearn
             rlearn_metrics=self.minor_get_metrics(test_data)
             return rlearn_metrics
+      
+      def minor_peril_step(self,planner,training_data,data_collected,test_data,conf_em,conf_cr):
+            self.minor_initialize_reasoning(test_data)
+            #generate training evidences for LPRA
+            f=open("reasoner/train.db","a")
+            for ins in training_data:
+                  #perception
+                  ins['perception']=self.minor_perceive(ins,conf_em,conf_cr)
+                  reasoner.minor_output_data(f,ins,ins['name'])
+            f.close()
+            #learn the weights from training data for LPRA
+            reasoner.learn_weights(input_file="autocar.mln",output_file="trained.mln",train_data="train.db")
+            reasoner.infer_cr(result_file="query_cr.result",evidence_file="query_cr.db",mln_file="trained.mln")
+            reasoner.infer(result_file="query.result",evidence_file="query.db",mln_file="trained.mln")
+            #get the query results for LPRA
+            co_query=reasoner.read_result("query.result")
+            cr_query=reasoner.read_result_cr("query_cr.result")
+            #check the reasoner learning result
 
+            # map the LPRA reasoning results to test data
+            self.minor_perceive_data(test_data,conf_em,conf_cr)
+            self.minor_query_reasoner(co_query,test_data)
+            self.minor_query_congestion(cr_query,test_data)
+            self.minor_planning(planner,test_data)
+            self.save_data(test_data,"PERIL")
+            peril_metrics=self.minor_get_metrics(test_data)
+            return peril_metrics
+      
       def minor_run(self,test_data,steps):
             reasoner.minor_del_reasoner_file()
             reasoner.minor_del_rlearn_file()
@@ -537,8 +567,6 @@ class AbstractSimulator:
             co_expect=[]
             test_data=test_data
             test_data2=copy.deepcopy(test_data)
-            cr_test=self.minor_check_cr(test_data)
-            co_test=self.minor_check_co(test_data)
             
             data_collected=[]
             planner=Planner()
@@ -573,55 +601,7 @@ class AbstractSimulator:
                   conf_cr=[perception_conf[1],1-perception_conf[1]]
                   #save conf_matrix to check
 
-                  #generate training evidences for LPRA
-                  f=open("reasoner/train.db","a")
-                  for ins in training_data:
-                        #perception
-                        ins['perception']=self.minor_perceive(ins,conf_em,conf_cr)
-                        reasoner.minor_output_data(f,ins,ins['name'])
-                  f.close()
-
-                  #generate training evidence for RA
-                  f=open("reasoner/train_r.db","a")
-                  for ins in training_data:
-                        reasoner.minor_output_data_r(f,ins,ins['name'])
-                  f.close()
-
-
-                  #learn the weights from training data for LPRA
-                  reasoner.learn_weights(input_file="autocar.mln",output_file="trained.mln",train_data="train.db")
-                  reasoner.infer_cr(result_file="query_cr.result",evidence_file="query_cr.db",mln_file="trained.mln")
-                  reasoner.infer(result_file="query.result",evidence_file="query.db",mln_file="trained.mln")
-                  #get the query results for LPRA
-                  co_query=reasoner.read_result("query.result")
-                  cr_query=reasoner.read_result_cr("query_cr.result")
-
-                  #learn the weights from training data for RA
-                  """
-                  reasoner.learn_weights(input_file="autocar_r.mln",output_file="trained_r.mln",train_data="train_r.db")
-                  reasoner.infer_cr(result_file="query_r_cr.result",evidence_file="query_r_cr.db",mln_file="trained_r.mln")
-                  reasoner.infer(result_file="query_r.result",evidence_file="query_r.db",mln_file="trained_r.mln")
-                  #get the query resultf for RA
-                  co_query_r=reasoner.read_result("query_r.result")
-                  cr_query_r=reasoner.read_result_cr("query_r_cr.result")
-                  """
-
-                  #self.minor_check_reasoner(training_data,cr_expect,co_expect,cr_query,co_query)
-                  #check the reasoner learning result
-                  print(cr_query,cr_test)
-                  cr_diff=self.minor_check_prob(cr_query,cr_test)
-                  co_diff=self.minor_check_prob(co_query,co_test)
-                  co_diffs.append(co_diff)
-                  cr_diffs.append(cr_diff)
-                  
-                  # map the LPRA reasoning results to test data
-                  self.minor_perceive_data(test_data,conf_em,conf_cr)
-                  self.minor_query_reasoner(co_query,test_data)
-                  self.minor_query_congestion(cr_query,test_data)
-                  self.minor_planning(planner,test_data)
-                  self.save_data(test_data,"PERIL")
-
-                  peril_metrics=self.minor_get_metrics(test_data)
+                  peril_metrics=self.minor_peril_step(planner,training_data,data_collected,test_data,conf_em,conf_cr)
                   peril_rewards.append(peril_metrics['avg_reward'])
                   peril_costs.append(peril_metrics['avg_cost'])
                   peril_successrates.append(peril_metrics['success_rate'])
@@ -630,16 +610,6 @@ class AbstractSimulator:
                   self.minor_planning_pr(planner,test_data)
                   self.save_data(test_data,"PRA_")
                   pr_metrics=self.minor_get_metrics(test_data)
-
-                  # map the RA reasoning results to test data
-                  #self.minor_perceive_data(test_data,conf[conf_index][0],conf[conf_index][1])
-                  """
-                  self.minor_query_congestion_r(cr_query_r,test_data)
-                  self.minor_query_reasoner_r(co_query_r,test_data)
-                  self.minor_planning(planner,test_data)
-                  self.save_data(test_data,"RA")
-                  ra_metrics=self.minor_get_metrics(test_data)
-                  """
 
                   plearn_metrics=self.minor_plearn_step(planner,test_data2,conf_em,conf_cr)
                   plearn_rewards.append(plearn_metrics['avg_reward'])
@@ -651,26 +621,20 @@ class AbstractSimulator:
                   rlearn_costs.append(rlearn_metrics['avg_cost'])
                   rlearn_successrates.append(rlearn_metrics['success_rate'])
             
-
             #apply only A on test data
             self.minor_a(planner,test_data)
             self.save_data(test_data,"A")
             #avg_r_a,avg_c_a,avg_s_a=self.minor_get_metrics(test_data)
             a_metrics=self.minor_get_metrics(test_data)
-            
-            """
-            reward_comparison=[peril_metrics['avg_reward'],pr_metrics['avg_reward'],ra_metrics['avg_reward'],a_metrics['avg_reward']]
-            cost_comparison=[peril_metrics['avg_cost'],pr_metrics['avg_cost'],ra_metrics['avg_cost'],a_metrics['avg_cost']]
-            successrate_comparison=[peril_metrics['success_rate'],pr_metrics['success_rate'],ra_metrics['success_rate'],a_metrics['success_rate']]
-            """
+
             reward_comparison=[peril_metrics['avg_reward'],pr_metrics['avg_reward'],rlearn_metrics['avg_reward'],a_metrics['avg_reward']]
             cost_comparison=[peril_metrics['avg_cost'],pr_metrics['avg_cost'],rlearn_metrics['avg_cost'],a_metrics['avg_cost']]
             successrate_comparison=[peril_metrics['success_rate'],pr_metrics['success_rate'],rlearn_metrics['success_rate'],a_metrics['success_rate']]
             
             plearn_mat=[plearn_rewards,plearn_costs,plearn_successrates]
             rlearn_mat=[rlearn_rewards,rlearn_costs,rlearn_successrates]
-            return samples,reward_comparison,cost_comparison,successrate_comparison,peril_rewards,peril_costs,peril_successrates,rlearn_mat,plearn_mat
-      
+            peril_mat=[peril_rewards,peril_costs,peril_successrates]
+            return samples,reward_comparison,cost_comparison,successrate_comparison,peril_mat,rlearn_mat,plearn_mat
       
       def minor_multi_run(self,test_data,steps):
             trends_r=[]
@@ -689,13 +653,12 @@ class AbstractSimulator:
             successrate_comps=[]
             dtio.clear_results_data()
             
-            for i in range(4):
-                  #self.minor_del_reasoner_file()       
-                  datasizes,reward_4b,cost_4b,successrate_4b,l_trend_r,l_trend_c,l_trend_s,rlearn_mat,plearn_mat=self.minor_run(test_data,steps)
+            for i in range(5):    
+                  datasizes,reward_4b,cost_4b,successrate_4b,peril_mat,rlearn_mat,plearn_mat=self.minor_run(test_data,steps)
                   
-                  trends_r.append(l_trend_r)
-                  trends_c.append(l_trend_c)
-                  trends_s.append(l_trend_s)
+                  trends_r.append(peril_mat[0])
+                  trends_c.append(peril_mat[1])
+                  trends_s.append(peril_mat[2])
                   
                   trends_rlearn_r.append(rlearn_mat[0])
                   trends_rlearn_c.append(rlearn_mat[1])
@@ -728,14 +691,16 @@ class AbstractSimulator:
             dtio.write_csv("successrate_comps.csv",successrate_comps)
             
             dtio.plot_learning(datasizes)
+            dtio.plot_learning_errband(datasizes)
             dtio.plot_comparison()
+
 
 def main():
       parser = argparse.ArgumentParser(description='Training Settings')
       #parser.add_argument()
       sim=AbstractSimulator()  
-      #steps=[20,40,80,160,320]
-      steps=[30,100,300,900]
+      #steps=[30,60,60,60,60,60,60]
+      steps=sim.dataszies_to_steps([30,90,150,210,270,330,390])
       test_data=sim.minor_generate_data(4000)
       sim.minor_multi_run(test_data,steps)
       #sim.minor_run(test_data,steps)
